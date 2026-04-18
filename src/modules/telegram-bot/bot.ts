@@ -31,42 +31,45 @@ export function startBot(): void {
     const chatId = msg.chat.id;
     const telegramId = String(chatId);
 
-    // Save or update citizen
-    await db
-      .insert(citizens)
-      .values({
-        telegramId,
-        fullName:
-          [msg.from?.first_name, msg.from?.last_name]
-            .filter(Boolean)
-            .join(' ') || null,
-        username: msg.from?.username ?? null,
-      })
-      .onConflictDoUpdate({
-        target: citizens.telegramId,
-        set: {
+    try {
+      await db
+        .insert(citizens)
+        .values({
+          telegramId,
           fullName:
             [msg.from?.first_name, msg.from?.last_name]
               .filter(Boolean)
               .join(' ') || null,
           username: msg.from?.username ?? null,
-          updatedAt: new Date(),
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: citizens.telegramId,
+          set: {
+            fullName:
+              [msg.from?.first_name, msg.from?.last_name]
+                .filter(Boolean)
+                .join(' ') || null,
+            username: msg.from?.username ?? null,
+            updatedAt: new Date(),
+          },
+        });
 
-    await bot!.sendMessage(
-      chatId,
-      `Assalomu alaykum! Geonomlar portaliga xush kelibsiz.\n\nTizimga kirish uchun telefon raqamingizni ulashing:`,
-      {
-        reply_markup: {
-          keyboard: [
-            [{ text: '📱 Telefon raqamni ulashish', request_contact: true }],
-          ],
-          resize_keyboard: true,
-          one_time_keyboard: true,
+      await bot!.sendMessage(
+        chatId,
+        `Assalomu alaykum! Geonomlar portaliga xush kelibsiz.\n\nTizimga kirish uchun telefon raqamingizni ulashing:`,
+        {
+          reply_markup: {
+            keyboard: [
+              [{ text: '📱 Telefon raqamni ulashish', request_contact: true }],
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: true,
+          },
         },
-      },
-    );
+      );
+    } catch (err) {
+      console.error('[Bot] /start xatolik:', err);
+    }
   });
 
   bot.on('contact', async (msg) => {
@@ -76,19 +79,22 @@ export function startBot(): void {
 
     if (!phone) return;
 
-    // Normalize phone: ensure + prefix
     const normalizedPhone = phone.startsWith('+') ? phone : `+${phone}`;
 
-    await db
-      .update(citizens)
-      .set({ phone: normalizedPhone, updatedAt: new Date() })
-      .where(eq(citizens.telegramId, telegramId));
+    try {
+      await db
+        .update(citizens)
+        .set({ phone: normalizedPhone, updatedAt: new Date() })
+        .where(eq(citizens.telegramId, telegramId));
 
-    await bot!.sendMessage(
-      chatId,
-      `✅ Telefon raqamingiz saqlandi: *${normalizedPhone}*\n\nEndi Geonomlar axborot portaliga kirishingiz mumkin.`,
-      { parse_mode: 'Markdown', reply_markup: { remove_keyboard: true } },
-    );
+      await bot!.sendMessage(
+        chatId,
+        `✅ Telefon raqamingiz saqlandi: *${normalizedPhone}*\n\nEndi Geonomlar axborot portaliga kirishingiz mumkin.`,
+        { parse_mode: 'Markdown', reply_markup: { remove_keyboard: true } },
+      );
+    } catch (err) {
+      console.error('[Bot] contact xatolik:', err);
+    }
   });
 
   bot.on('polling_error', (err) => {

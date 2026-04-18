@@ -30,14 +30,18 @@ process.on('unhandledRejection', (reason: unknown) => {
   console.log(
     reason instanceof Error ? `${reason.name}: ${reason.message}` : reason,
   );
-  server.close(() => {
+  if (server) {
+    server.close(() => process.exit(1));
+  } else {
     process.exit(1);
-  });
+  }
 });
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM RECEIVED! 💥 Shutting down gracefully...');
-  server.close(() => {
-    console.log('💥 Process terminated!');
-  });
+  if (server) {
+    server.close(() => console.log('💥 Process terminated!'));
+  } else {
+    process.exit(0);
+  }
 });
