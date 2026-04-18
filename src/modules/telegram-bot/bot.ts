@@ -99,6 +99,11 @@ export function startBot(): void {
 
   bot.on('polling_error', (err) => {
     console.error('[Bot] Polling xatolik:', err.message);
+    if (err.message.includes('409')) {
+      bot!.stopPolling().then(() => {
+        setTimeout(() => bot!.startPolling(), 5000);
+      }).catch(() => {});
+    }
   });
 
   console.log('[Bot] Telegram bot polling rejimida ishga tushdi');
