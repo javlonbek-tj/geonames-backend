@@ -1,0 +1,1 @@
+ALTER TABLE "citizen_otps" ADD CONSTRAINT "citizen_otps_telegram_id_unique" UNIQUE("telegram_id");

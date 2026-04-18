@@ -1,0 +1,17 @@
+export const APP_STATUS = {
+  STEP_1_GEOMETRY_UPLOADED:    'step_1_geometry_uploaded',
+  STEP_1_1_DKP_REGIONAL:       'step_1_1_dkp_regional',
+  STEP_1_2_DKP_COORDINATION:   'step_1_2_dkp_coordination',
+  STEP_2_DISTRICT_HOKIMLIK:    'step_2_district_hokimlik',
+  STEP_2_PUBLIC_DISCUSSION:    'step_2_public_discussion',
+  STEP_2_1_DISTRICT_COMMISSION:'step_2_1_district_commission',
+  STEP_2_2_REGIONAL_COMMISSION:'step_2_2_regional_commission',
+  STEP_3_REGIONAL_HOKIMLIK:    'step_3_regional_hokimlik',
+  STEP_4_KADASTR_AGENCY:       'step_4_kadastr_agency',
+  STEP_5_DKP_CENTRAL:          'step_5_dkp_central',
+  STEP_6_KADASTR_AGENCY_FINAL: 'step_6_kadastr_agency_final',
+  STEP_7_REGIONAL_HOKIMLIK:    'step_7_regional_hokimlik',
+  STEP_8_DISTRICT_HOKIMLIK:    'step_8_district_hokimlik',
+  COMPLETED:                   'completed',
+  REJECTED:                    'rejected',
+} as const;
