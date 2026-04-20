@@ -1,1 +1,0 @@
-ALTER TABLE "geographic_objects" ADD COLUMN "soato" varchar(20);

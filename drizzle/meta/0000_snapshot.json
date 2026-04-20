@@ -1,5 +1,5 @@
 {
-  "id": "32218386-7943-407c-ae9e-493cfdbcfa35",
+  "id": "b2cb242f-9082-4520-a297-754c429dd90d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -229,6 +229,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "position": {
+          "name": "position",
+          "type": "commission_position",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
         "region_id": {
           "name": "region_id",
           "type": "integer",
@@ -257,18 +264,6 @@
         },
         "password_changed_at": {
           "name": "password_changed_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "password_reset_token": {
-          "name": "password_reset_token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "password_reset_expires": {
-          "name": "password_reset_expires",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
@@ -341,6 +336,12 @@
           "primaryKey": true,
           "notNull": true
         },
+        "code": {
+          "name": "code",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "name_uz": {
           "name": "name_uz",
           "type": "varchar(200)",
@@ -371,7 +372,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "object_categories_code_unique": {
+          "name": "object_categories_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -451,11 +460,17 @@
           "primaryKey": true,
           "notNull": true
         },
+        "application_id": {
+          "name": "application_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "name_uz": {
           "name": "name_uz",
           "type": "varchar(200)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "name_krill": {
           "name": "name_krill",
@@ -467,7 +482,7 @@
           "name": "object_type_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "region_id": {
           "name": "region_id",
@@ -490,6 +505,36 @@
         "registry_number": {
           "name": "registry_number",
           "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "soato": {
+          "name": "soato",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "basis_document": {
+          "name": "basis_document",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "affiliation": {
+          "name": "affiliation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "historical_name": {
+          "name": "historical_name",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -522,6 +567,19 @@
       },
       "indexes": {},
       "foreignKeys": {
+        "geographic_objects_application_id_applications_id_fk": {
+          "name": "geographic_objects_application_id_applications_id_fk",
+          "tableFrom": "geographic_objects",
+          "tableTo": "applications",
+          "columnsFrom": [
+            "application_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "geographic_objects_object_type_id_object_types_id_fk": {
           "name": "geographic_objects_object_type_id_object_types_id_fk",
           "tableFrom": "geographic_objects",
@@ -605,12 +663,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "geographic_object_id": {
-          "name": "geographic_object_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
         "current_status": {
           "name": "current_status",
           "type": "application_status",
@@ -648,19 +700,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "applications_geographic_object_id_geographic_objects_id_fk": {
-          "name": "applications_geographic_object_id_geographic_objects_id_fk",
-          "tableFrom": "applications",
-          "tableTo": "geographic_objects",
-          "columnsFrom": [
-            "geographic_object_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "applications_current_handler_id_users_id_fk": {
           "name": "applications_current_handler_id_users_id_fk",
           "tableFrom": "applications",
@@ -895,6 +934,517 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.commission_approvals": {
+      "name": "commission_approvals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "application_id": {
+          "name": "application_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "commission_position",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "approved": {
+          "name": "approved",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "commission_approvals_application_id_applications_id_fk": {
+          "name": "commission_approvals_application_id_applications_id_fk",
+          "tableFrom": "commission_approvals",
+          "tableTo": "applications",
+          "columnsFrom": [
+            "application_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "commission_approvals_user_id_users_id_fk": {
+          "name": "commission_approvals_user_id_users_id_fk",
+          "tableFrom": "commission_approvals",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_commission_approval": {
+          "name": "uq_commission_approval",
+          "nullsNotDistinct": false,
+          "columns": [
+            "application_id",
+            "position"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.citizen_otps": {
+      "name": "citizen_otps",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telegram_id": {
+          "name": "telegram_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "used": {
+          "name": "used",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "citizen_otps_session_id_unique": {
+          "name": "citizen_otps_session_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "session_id"
+          ]
+        },
+        "citizen_otps_telegram_id_unique": {
+          "name": "citizen_otps_telegram_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "telegram_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.citizens": {
+      "name": "citizens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "telegram_id": {
+          "name": "telegram_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "citizens_telegram_id_unique": {
+          "name": "citizens_telegram_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "telegram_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.public_discussions": {
+      "name": "public_discussions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "application_id": {
+          "name": "application_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geo_object_id": {
+          "name": "geo_object_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "public_discussions_application_id_applications_id_fk": {
+          "name": "public_discussions_application_id_applications_id_fk",
+          "tableFrom": "public_discussions",
+          "tableTo": "applications",
+          "columnsFrom": [
+            "application_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "public_discussions_geo_object_id_geographic_objects_id_fk": {
+          "name": "public_discussions_geo_object_id_geographic_objects_id_fk",
+          "tableFrom": "public_discussions",
+          "tableTo": "geographic_objects",
+          "columnsFrom": [
+            "geo_object_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_discussion_geo_object": {
+          "name": "uq_discussion_geo_object",
+          "nullsNotDistinct": false,
+          "columns": [
+            "application_id",
+            "geo_object_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.public_votes": {
+      "name": "public_votes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "discussion_id": {
+          "name": "discussion_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "citizen_id": {
+          "name": "citizen_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vote": {
+          "name": "vote",
+          "type": "vote_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "public_votes_discussion_id_public_discussions_id_fk": {
+          "name": "public_votes_discussion_id_public_discussions_id_fk",
+          "tableFrom": "public_votes",
+          "tableTo": "public_discussions",
+          "columnsFrom": [
+            "discussion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "public_votes_citizen_id_citizens_id_fk": {
+          "name": "public_votes_citizen_id_citizens_id_fk",
+          "tableFrom": "public_votes",
+          "tableTo": "citizens",
+          "columnsFrom": [
+            "citizen_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_discussion_citizen_vote": {
+          "name": "uq_discussion_citizen_vote",
+          "nullsNotDistinct": false,
+          "columns": [
+            "discussion_id",
+            "citizen_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.geo_object_flags": {
+      "name": "geo_object_flags",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "application_id": {
+          "name": "application_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geo_object_id": {
+          "name": "geo_object_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "marked_by": {
+          "name": "marked_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "geo_object_flags_application_id_applications_id_fk": {
+          "name": "geo_object_flags_application_id_applications_id_fk",
+          "tableFrom": "geo_object_flags",
+          "tableTo": "applications",
+          "columnsFrom": [
+            "application_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "geo_object_flags_geo_object_id_geographic_objects_id_fk": {
+          "name": "geo_object_flags_geo_object_id_geographic_objects_id_fk",
+          "tableFrom": "geo_object_flags",
+          "tableTo": "geographic_objects",
+          "columnsFrom": [
+            "geo_object_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "geo_object_flags_marked_by_users_id_fk": {
+          "name": "geo_object_flags_marked_by_users_id_fk",
+          "tableFrom": "geo_object_flags",
+          "tableTo": "users",
+          "columnsFrom": [
+            "marked_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_geo_flag": {
+          "name": "uq_geo_flag",
+          "nullsNotDistinct": false,
+          "columns": [
+            "application_id",
+            "geo_object_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -905,10 +1455,7 @@
         "submit",
         "approve",
         "reject",
-        "return",
-        "attach_document",
-        "assign_registry_number",
-        "confirm_geometry"
+        "return"
       ]
     },
     "public.application_status": {
@@ -916,9 +1463,10 @@
       "schema": "public",
       "values": [
         "step_1_geometry_uploaded",
-        "step_1_1_district_commission",
-        "step_1_2_dkp_filial_proposal",
+        "step_1_1_dkp_regional",
+        "step_1_2_dkp_coordination",
         "step_2_district_hokimlik",
+        "step_2_public_discussion",
         "step_2_1_district_commission",
         "step_2_2_regional_commission",
         "step_3_regional_hokimlik",
@@ -927,22 +1475,35 @@
         "step_6_kadastr_agency_final",
         "step_7_regional_hokimlik",
         "step_8_district_hokimlik",
-        "step_9_peoples_council",
         "completed",
         "rejected"
+      ]
+    },
+    "public.commission_position": {
+      "name": "commission_position",
+      "schema": "public",
+      "values": [
+        "hokim",
+        "hokim_deputy",
+        "economics_head",
+        "construction_head",
+        "poverty_head",
+        "ecology_head",
+        "culture_head",
+        "spirituality_head",
+        "newspaper_head",
+        "dkp_head",
+        "historian",
+        "linguist",
+        "geographer"
       ]
     },
     "public.document_type": {
       "name": "document_type",
       "schema": "public",
       "values": [
-        "dalolatnoma",
-        "district_commission_conclusion",
-        "regional_commission_conclusion",
-        "official_letter",
-        "decision_draft",
-        "expertise_conclusion",
-        "other"
+        "geometry_file",
+        "attachment"
       ]
     },
     "public.user_role": {
@@ -951,13 +1512,21 @@
       "values": [
         "admin",
         "dkp_filial",
+        "dkp_regional",
+        "dkp_central",
         "district_commission",
         "district_hokimlik",
         "regional_commission",
         "regional_hokimlik",
-        "kadastr_agency",
-        "dkp_central",
-        "peoples_council"
+        "kadastr_agency"
+      ]
+    },
+    "public.vote_type": {
+      "name": "vote_type",
+      "schema": "public",
+      "values": [
+        "support",
+        "oppose"
       ]
     }
   },
