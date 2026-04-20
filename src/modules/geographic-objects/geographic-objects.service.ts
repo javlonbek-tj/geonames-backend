@@ -1,4 +1,4 @@
-import { eq, and, count, inArray, ilike, or, SQL, asc } from 'drizzle-orm';
+import { eq, and, count, inArray, ilike, or, SQL, asc, sql } from 'drizzle-orm';
 import { db } from '../../db/db';
 import {
   geographicObjects,
@@ -314,6 +314,7 @@ export async function getRegistry(query: {
       limit,
       offset,
       orderBy: [
+        sql`CASE WHEN ${geographicObjects.geometry} IS NOT NULL THEN 0 ELSE 1 END`,
         asc(geographicObjects.regionId),
         asc(geographicObjects.districtId),
         asc(geographicObjects.nameUz),

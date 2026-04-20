@@ -3,6 +3,7 @@ import { ENV } from '../config';
 import { AppError } from '../utils/appError';
 
 const sendErrorDev = (err: AppError, res: Response) => {
+  console.log('[ERROR]', err);
   res.status(err.statusCode).json({
     status: err.status,
     message: err.message,
@@ -20,7 +21,7 @@ const sendErrorProd = (err: AppError, res: Response) => {
   } else {
     res.status(500).json({
       status: 'error',
-      message: 'Something went wrong.',
+      message: 'Something went wrong',
     });
   }
 };
