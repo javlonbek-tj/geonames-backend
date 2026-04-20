@@ -16,7 +16,7 @@ let server: http.Server;
 async function start(): Promise<void> {
   await connectDb();
 
-  startBot();
+  /*  startBot(); */
 
   server = app.listen(ENV.PORT, () => {
     console.log(`Server is running on port ${ENV.PORT}`);

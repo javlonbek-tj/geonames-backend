@@ -1,4 +1,4 @@
-import { eq, ilike } from 'drizzle-orm';
+import { eq, ilike, and } from 'drizzle-orm';
 import { db } from '../../../db/db';
 import { objectCategories, objectTypes } from '../../../db/schema';
 import { AppError } from '../../../utils/appError';
@@ -13,7 +13,12 @@ import type {
 
 export async function getCategories() {
   return db.query.objectCategories.findMany({
-    with: { objectTypes: true },
+    where: eq(objectCategories.isActive, true),
+    with: {
+      objectTypes: {
+        where: eq(objectTypes.isActive, true),
+      },
+    },
     orderBy: (c, { asc }) => asc(c.nameUz),
   });
 }
@@ -45,30 +50,31 @@ export async function updateCategory(id: number, input: UpdateCategoryInput) {
 }
 
 export async function deleteCategory(id: number) {
-  const typesCount = await db.query.objectTypes.findFirst({
-    where: eq(objectTypes.categoryId, id),
+  const category = await db.query.objectCategories.findFirst({
+    where: eq(objectCategories.id, id),
   });
+  if (!category) throw new AppError('Kategoriya topilmadi', 404);
 
-  if (typesCount) {
-    throw new AppError(
-      "Bu kategoriyaga bog'liq turlar mavjud. Avval turlarni o'chiring",
-      409,
-    );
-  }
+  await db.transaction(async (tx) => {
+    await tx
+      .update(objectTypes)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(and(eq(objectTypes.categoryId, id), eq(objectTypes.isActive, true)));
 
-  const [deleted] = await db
-    .delete(objectCategories)
-    .where(eq(objectCategories.id, id))
-    .returning();
-
-  if (!deleted) throw new AppError('Kategoriya topilmadi', 404);
+    await tx
+      .update(objectCategories)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(objectCategories.id, id));
+  });
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export async function getTypes(categoryId?: number) {
   return db.query.objectTypes.findMany({
-    where: categoryId ? eq(objectTypes.categoryId, categoryId) : undefined,
+    where: categoryId
+      ? and(eq(objectTypes.categoryId, categoryId), eq(objectTypes.isActive, true))
+      : eq(objectTypes.isActive, true),
     with: { category: true },
     orderBy: (t, { asc }) => asc(t.nameUz),
   });
@@ -103,10 +109,13 @@ export async function updateType(id: number, input: UpdateTypeInput) {
 }
 
 export async function deleteType(id: number) {
-  const [deleted] = await db
-    .delete(objectTypes)
-    .where(eq(objectTypes.id, id))
-    .returning();
+  const type = await db.query.objectTypes.findFirst({
+    where: eq(objectTypes.id, id),
+  });
+  if (!type) throw new AppError('Tur topilmadi', 404);
 
-  if (!deleted) throw new AppError('Tur topilmadi', 404);
+  await db
+    .update(objectTypes)
+    .set({ isActive: false, updatedAt: new Date() })
+    .where(eq(objectTypes.id, id));
 }

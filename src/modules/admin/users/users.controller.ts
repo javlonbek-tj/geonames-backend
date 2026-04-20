@@ -54,6 +54,9 @@ export async function resetPassword(req: Request, res: Response) {
 }
 
 export async function deleteUser(req: Request, res: Response) {
+  if (req.user!.userId === Number(req.params.id)) {
+    throw new AppError("O'zingizni o'chira olmaysiz", 403);
+  }
   await usersService.deleteUser(Number(req.params.id));
-  res.status(204).send();
+  res.status(200).json({ status: 'success', message: 'Foydalanuvchi o\'chirildi' });
 }

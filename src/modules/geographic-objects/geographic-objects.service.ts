@@ -6,7 +6,6 @@ import {
   applicationHistory,
   districts,
   objectTypes,
-  geoObjectFlags,
 } from '../../db/schema';
 import { APP_STATUS } from '../../constants/app-status';
 import { AppError } from '../../utils/appError';
@@ -276,7 +275,7 @@ export async function getRegistry(query: {
   } = query;
   const offset = (page - 1) * limit;
 
-  const conditions: SQL[] = [];
+  const conditions: SQL[] = [eq(geographicObjects.isActive, true)];
   if (regionId) conditions.push(eq(geographicObjects.regionId, regionId));
   if (districtId) conditions.push(eq(geographicObjects.districtId, districtId));
   if (objectTypeId) {
@@ -301,7 +300,7 @@ export async function getRegistry(query: {
     );
   }
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = and(...conditions);
 
   const [data, [{ total }]] = await Promise.all([
     db.query.geographicObjects.findMany({
@@ -358,7 +357,10 @@ export async function deleteRegistryObject(id: number) {
   });
   if (!obj) throw new AppError('Geografik obyekt topilmadi', 404);
 
-  await db.delete(geographicObjects).where(eq(geographicObjects.id, id));
+  await db
+    .update(geographicObjects)
+    .set({ isActive: false, updatedAt: new Date() })
+    .where(eq(geographicObjects.id, id));
 }
 
 export async function updateGeometry(

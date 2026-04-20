@@ -33,7 +33,7 @@ export async function updateCategory(req: Request, res: Response) {
 
 export async function deleteCategory(req: Request, res: Response) {
   await service.deleteCategory(Number(req.params.id));
-  res.status(204).send();
+  res.status(200).json({ status: 'success', message: "Kategoriya o'chirildi" });
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -65,5 +65,5 @@ export async function updateType(req: Request, res: Response) {
 
 export async function deleteType(req: Request, res: Response) {
   await service.deleteType(Number(req.params.id));
-  res.status(204).send();
+  res.status(200).json({ status: 'success', message: "Tur o'chirildi" });
 }

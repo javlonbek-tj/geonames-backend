@@ -32,7 +32,7 @@ export async function getUsers(query: {
   const { page, limit, role, search } = query;
   const offset = (page - 1) * limit;
 
-  const conditions: SQL[] = [];
+  const conditions: SQL[] = [eq(users.isActive, true)];
   if (role) conditions.push(eq(users.role, role as any));
   if (search) conditions.push(ilike(users.username, `%${search}%`));
 
@@ -114,5 +114,5 @@ export async function resetPassword(id: number, input: ResetPasswordInput) {
 
 export async function deleteUser(id: number) {
   await getUserById(id);
-  await db.delete(users).where(eq(users.id, id));
+  await db.update(users).set({ isActive: false, updatedAt: new Date() }).where(eq(users.id, id));
 }

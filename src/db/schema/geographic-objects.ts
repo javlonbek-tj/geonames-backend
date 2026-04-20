@@ -42,6 +42,7 @@ export const geographicObjects = pgTable('geographic_objects', {
   comment: text('comment'),
 
   existsInRegistry: boolean('exists_in_registry'),
+  isActive: boolean('is_active').default(true).notNull(),
 
   createdBy: integer('created_by')
     .references(() => users.id)
