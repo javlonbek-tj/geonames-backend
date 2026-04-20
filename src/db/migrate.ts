@@ -6,7 +6,8 @@ import { ENV } from '../config/env';
 async function main() {
   const pool = new Pool({
     connectionString: ENV.DATABASE_URL,
-    ssl: ENV.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+    ssl:
+      ENV.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
   });
 
   const db = drizzle({ client: pool });

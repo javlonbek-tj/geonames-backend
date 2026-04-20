@@ -18,8 +18,10 @@ import { sendOtp } from '../telegram-bot/bot';
 export async function requestOtp(
   phone: string,
 ): Promise<{ sessionId: string }> {
+  const normalizedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+
   const citizen = await db.query.citizens.findFirst({
-    where: eq(citizens.phone, phone),
+    where: eq(citizens.phone, normalizedPhone),
   });
 
   if (!citizen) {
@@ -33,7 +35,7 @@ export async function requestOtp(
   const sessionId = randomBytes(24).toString('hex');
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-  await db.insert(citizenOtps).values({ sessionId, phone, code, expiresAt });
+  await db.insert(citizenOtps).values({ sessionId, phone: normalizedPhone, code, expiresAt });
   await sendOtp(citizen.telegramId, code);
 
   return { sessionId };
