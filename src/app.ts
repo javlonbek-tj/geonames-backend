@@ -53,20 +53,23 @@ app.use(cookieParser());
 
 // XSS sanitize string fields in request body
 app.use((req: Request, _res: Response, next: NextFunction) => {
-  if (req.body && typeof req.body === 'object') {
-    const sanitize = (
-      obj: Record<string, unknown>,
-    ): Record<string, unknown> => {
-      for (const key of Object.keys(obj)) {
-        if (typeof obj[key] === 'string') {
-          obj[key] = filterXSS(obj[key] as string);
-        } else if (obj[key] && typeof obj[key] === 'object') {
-          sanitize(obj[key] as Record<string, unknown>);
-        }
+  const sanitize = (obj: unknown): unknown => {
+    if (typeof obj === 'string') {
+      return filterXSS(obj);
+    } else if (Array.isArray(obj)) {
+      return obj.map(sanitize);
+    } else if (obj && typeof obj === 'object') {
+      const record = obj as Record<string, unknown>;
+      for (const key of Object.keys(record)) {
+        record[key] = sanitize(record[key]);
       }
-      return obj;
-    };
-    sanitize(req.body as Record<string, unknown>);
+      return record;
+    }
+    return obj;
+  };
+
+  if (req.body) {
+    req.body = sanitize(req.body);
   }
   next();
 });

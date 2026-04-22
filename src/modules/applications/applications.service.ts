@@ -1,4 +1,4 @@
-import { eq, inArray, and, count, ilike } from 'drizzle-orm';
+import { eq, inArray, and, or, count, ilike } from 'drizzle-orm';
 import { db } from '../../db/db';
 import {
   applications,
@@ -17,10 +17,13 @@ import type { PerformActionInput } from './applications.schema';
 
 // Status for each role
 const ROLE_STATUSES: Record<string, string[]> = {
-  dkp_filial:          [APP_STATUS.STEP_1_GEOMETRY_UPLOADED],
-  dkp_regional:        [APP_STATUS.STEP_1_1_DKP_REGIONAL],
-  dkp_central:         [APP_STATUS.STEP_1_2_DKP_COORDINATION, APP_STATUS.STEP_5_DKP_CENTRAL],
-  district_hokimlik:   [
+  dkp_filial: [APP_STATUS.STEP_1_GEOMETRY_UPLOADED],
+  dkp_regional: [APP_STATUS.STEP_1_1_DKP_REGIONAL],
+  dkp_central: [
+    APP_STATUS.STEP_1_2_DKP_COORDINATION,
+    APP_STATUS.STEP_5_DKP_CENTRAL,
+  ],
+  district_hokimlik: [
     APP_STATUS.STEP_2_DISTRICT_HOKIMLIK,
     APP_STATUS.STEP_2_PUBLIC_DISCUSSION,
     APP_STATUS.STEP_2_1_DISTRICT_COMMISSION,
@@ -28,8 +31,14 @@ const ROLE_STATUSES: Record<string, string[]> = {
   ],
   district_commission: [APP_STATUS.STEP_2_1_DISTRICT_COMMISSION],
   regional_commission: [APP_STATUS.STEP_2_2_REGIONAL_COMMISSION],
-  regional_hokimlik:   [APP_STATUS.STEP_3_REGIONAL_HOKIMLIK, APP_STATUS.STEP_7_REGIONAL_HOKIMLIK],
-  kadastr_agency:      [APP_STATUS.STEP_4_KADASTR_AGENCY, APP_STATUS.STEP_6_KADASTR_AGENCY_FINAL],
+  regional_hokimlik: [
+    APP_STATUS.STEP_3_REGIONAL_HOKIMLIK,
+    APP_STATUS.STEP_7_REGIONAL_HOKIMLIK,
+  ],
+  kadastr_agency: [
+    APP_STATUS.STEP_4_KADASTR_AGENCY,
+    APP_STATUS.STEP_6_KADASTR_AGENCY_FINAL,
+  ],
 };
 
 const GEO_WITH = {
@@ -46,38 +55,50 @@ export async function getApplications(
     page: number;
     limit: number;
     status?: string;
-    tab?: string;
     applicationNumber?: string;
     regionId?: number;
     districtId?: number;
   },
 ) {
-  const { page, limit, status, tab, applicationNumber, regionId, districtId } = query;
+  const { page, limit, status, applicationNumber, regionId, districtId } =
+    query;
   const offset = (page - 1) * limit;
 
-  if (tab === 'history' && user.role !== 'admin') {
-    return getHistoricalApplications(user, { page, limit, offset, applicationNumber, districtId });
-  }
-
   // Build geo-level filter (districtId / regionId) via subquery
-  const isDistrictRole = ['dkp_filial', 'district_commission', 'district_hokimlik'].includes(user.role);
-  const isRegionalRole = ['dkp_regional', 'regional_commission', 'regional_hokimlik'].includes(user.role);
+  const isDistrictRole = [
+    'dkp_filial',
+    'district_commission',
+    'district_hokimlik',
+  ].includes(user.role);
+  const isRegionalRole = [
+    'dkp_regional',
+    'regional_commission',
+    'regional_hokimlik',
+  ].includes(user.role);
 
-  const effectiveDistrictId = isDistrictRole ? (user.districtId ?? undefined) : districtId;
-  const effectiveRegionId   = isRegionalRole ? (user.regionId ?? undefined) : regionId;
+  const effectiveDistrictId = isDistrictRole
+    ? (user.districtId ?? undefined)
+    : districtId;
+  const effectiveRegionId = isRegionalRole
+    ? (user.regionId ?? undefined)
+    : regionId;
 
   let geoSubquery: ReturnType<typeof inArray> | undefined;
   if (effectiveDistrictId || effectiveRegionId) {
     const geoConditions = [];
-    if (effectiveDistrictId) geoConditions.push(eq(geographicObjects.districtId, effectiveDistrictId));
-    if (effectiveRegionId)   geoConditions.push(eq(geographicObjects.regionId, effectiveRegionId));
+    if (effectiveDistrictId)
+      geoConditions.push(eq(geographicObjects.districtId, effectiveDistrictId));
+    if (effectiveRegionId)
+      geoConditions.push(eq(geographicObjects.regionId, effectiveRegionId));
 
     const matchingAppIds = (
       await db
         .select({ id: geographicObjects.applicationId })
         .from(geographicObjects)
         .where(and(...geoConditions))
-    ).map((g) => g.id).filter((id): id is number => id !== null);
+    )
+      .map((g) => g.id)
+      .filter((id): id is number => id !== null);
 
     if (matchingAppIds.length === 0) {
       return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
@@ -87,9 +108,12 @@ export async function getApplications(
 
   if (user.role === 'admin') {
     const conditions = [];
-    if (status)            conditions.push(eq(applications.currentStatus, status as any));
-    if (applicationNumber) conditions.push(ilike(applications.applicationNumber, `%${applicationNumber}%`));
-    if (geoSubquery)       conditions.push(geoSubquery);
+    if (status) conditions.push(eq(applications.currentStatus, status as any));
+    if (applicationNumber)
+      conditions.push(
+        ilike(applications.applicationNumber, `%${applicationNumber}%`),
+      );
+    if (geoSubquery) conditions.push(geoSubquery);
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const [data, [{ total }]] = await Promise.all([
@@ -107,7 +131,12 @@ export async function getApplications(
     ]);
     return {
       data,
-      meta: { total: Number(total), page, limit, totalPages: Math.ceil(Number(total) / limit) },
+      meta: {
+        total: Number(total),
+        page,
+        limit,
+        totalPages: Math.ceil(Number(total) / limit),
+      },
     };
   }
 
@@ -116,11 +145,30 @@ export async function getApplications(
     return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
   }
 
-  const statusFilter = status && allowedStatuses.includes(status) ? [status] : allowedStatuses;
+  // Apps that previously passed through this role's step
+  const appIdsFromHistory = (
+    await db
+      .selectDistinct({ id: applicationHistory.applicationId })
+      .from(applicationHistory)
+      .where(inArray(applicationHistory.fromStatus, allowedStatuses as any[]))
+  ).map((h) => h.id);
 
-  const conditions = [inArray(applications.currentStatus, statusFilter as any[])];
-  if (applicationNumber) conditions.push(ilike(applications.applicationNumber, `%${applicationNumber}%`));
-  if (geoSubquery)       conditions.push(geoSubquery);
+  // Access scope: currently active at this role's step OR previously processed
+  const roleFilter =
+    appIdsFromHistory.length > 0
+      ? or(
+          inArray(applications.currentStatus, allowedStatuses as any[]),
+          inArray(applications.id, appIdsFromHistory),
+        )
+      : inArray(applications.currentStatus, allowedStatuses as any[]);
+
+  const conditions: any[] = [roleFilter];
+  if (status) conditions.push(eq(applications.currentStatus, status as any));
+  if (applicationNumber)
+    conditions.push(
+      ilike(applications.applicationNumber, `%${applicationNumber}%`),
+    );
+  if (geoSubquery) conditions.push(geoSubquery);
   const where = and(...conditions);
 
   const [data, [{ total }]] = await Promise.all([
@@ -139,98 +187,64 @@ export async function getApplications(
 
   return {
     data,
-    meta: { total: Number(total), page, limit, totalPages: Math.ceil(Number(total) / limit) },
+    meta: {
+      total: Number(total),
+      page,
+      limit,
+      totalPages: Math.ceil(Number(total) / limit),
+    },
   };
 }
 
-async function getHistoricalApplications(
-  user: JwtPayload,
-  {
-    page, limit, offset,
-    applicationNumber,
-    districtId,
-  }: {
-    page: number;
-    limit: number;
-    offset: number;
-    applicationNumber?: string;
-    districtId?: number;
-  },
-) {
+export async function getMyCount(user: JwtPayload) {
   const activeStatuses = ROLE_STATUSES[user.role] ?? [];
+  if (activeStatuses.length === 0) return { count: 0 };
 
-  const isDistrictRole = ['dkp_filial', 'district_commission', 'district_hokimlik'].includes(user.role);
-  const isRegionalRole = ['dkp_regional', 'regional_commission', 'regional_hokimlik'].includes(user.role);
+  const isDistrictRole = [
+    'dkp_filial',
+    'district_commission',
+    'district_hokimlik',
+  ].includes(user.role);
+  const isRegionalRole = [
+    'dkp_regional',
+    'regional_commission',
+    'regional_hokimlik',
+  ].includes(user.role);
 
-  const effectiveDistrictId = isDistrictRole ? (user.districtId ?? undefined) : districtId;
-  const effectiveRegionId   = isRegionalRole ? (user.regionId ?? undefined)   : undefined;
-
-  // Get application IDs that passed through this role's statuses
-  const historyConditions: ReturnType<typeof eq>[] = [
-    inArray(applicationHistory.fromStatus, activeStatuses as any[]) as any,
-  ];
-  const appIdsFromHistory = (
-    await db
-      .selectDistinct({ id: applicationHistory.applicationId })
-      .from(applicationHistory)
-      .where(and(...historyConditions))
-  ).map((h) => h.id);
-
-  if (appIdsFromHistory.length === 0) {
-    return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
-  }
-
-  // Build conditions on applications table
-  const conditions = [
-    inArray(applications.id, appIdsFromHistory),
-    // Exclude currently active (still at this role's step)
-    ...(activeStatuses.length > 0
-      ? [inArray(applications.currentStatus, activeStatuses as any[])]
-      : []),
+  const conditions: any[] = [
+    inArray(applications.currentStatus, activeStatuses as any[]),
   ];
 
-  // We want apps NOT in active statuses — negate by fetching separately
-  // Simpler: fetch apps by id and filter out active ones in a targeted way
-  const appConditions = [inArray(applications.id, appIdsFromHistory)];
-  if (applicationNumber) appConditions.push(ilike(applications.applicationNumber, `%${applicationNumber}%`));
-
-  // Geo filter
-  if (effectiveDistrictId || effectiveRegionId) {
-    const geoConditions = [];
-    if (effectiveDistrictId) geoConditions.push(eq(geographicObjects.districtId, effectiveDistrictId));
-    if (effectiveRegionId)   geoConditions.push(eq(geographicObjects.regionId, effectiveRegionId));
-
+  if (isDistrictRole && user.districtId) {
     const matchingAppIds = (
       await db
         .select({ id: geographicObjects.applicationId })
         .from(geographicObjects)
-        .where(and(...geoConditions))
+        .where(eq(geographicObjects.districtId, user.districtId))
     ).map((g) => g.id).filter((id): id is number => id !== null);
 
-    if (matchingAppIds.length === 0) {
-      return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
-    }
-    appConditions.push(inArray(applications.id, matchingAppIds));
+    if (matchingAppIds.length === 0) return { count: 0 };
+    conditions.push(inArray(applications.id, matchingAppIds));
   }
 
-  const allApps = await db.query.applications.findMany({
-    where: and(...appConditions),
-    with: {
-      geographicObjects: GEO_WITH,
-      creator: { columns: { id: true, username: true, fullName: true } },
-    },
-    orderBy: (a, { desc }) => desc(a.updatedAt),
-  });
+  if (isRegionalRole && user.regionId) {
+    const matchingAppIds = (
+      await db
+        .select({ id: geographicObjects.applicationId })
+        .from(geographicObjects)
+        .where(eq(geographicObjects.regionId, user.regionId))
+    ).map((g) => g.id).filter((id): id is number => id !== null);
 
-  // Exclude apps still active at this role's step
-  const filtered = allApps.filter((app) => !activeStatuses.includes(app.currentStatus));
+    if (matchingAppIds.length === 0) return { count: 0 };
+    conditions.push(inArray(applications.id, matchingAppIds));
+  }
 
-  const total = filtered.length;
-  const data = filtered.slice(offset, offset + limit);
-  return {
-    data,
-    meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-  };
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(applications)
+    .where(and(...conditions));
+
+  return { count: Number(total) };
 }
 
 export async function getApplicationById(id: number) {
@@ -274,7 +288,10 @@ export async function performAction(
 
   if (!app) throw new AppError('Ariza topilmadi', 404);
 
-  if (app.currentStatus === APP_STATUS.COMPLETED || app.currentStatus === APP_STATUS.REJECTED) {
+  if (
+    app.currentStatus === APP_STATUS.COMPLETED ||
+    app.currentStatus === APP_STATUS.REJECTED
+  ) {
     throw new AppError('Bu ariza allaqachon yakunlangan', 400);
   }
 

@@ -7,21 +7,27 @@ export async function getApplications(req: Request, res: Response) {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
   const status = req.query.status as string | undefined;
-  const tab = req.query.tab as string | undefined;
-  const applicationNumber = (req.query.applicationNumber as string | undefined)?.trim() || undefined;
+  const applicationNumber =
+    (req.query.applicationNumber as string | undefined)?.trim() || undefined;
   const regionId = req.query.regionId ? Number(req.query.regionId) : undefined;
-  const districtId = req.query.districtId ? Number(req.query.districtId) : undefined;
+  const districtId = req.query.districtId
+    ? Number(req.query.districtId)
+    : undefined;
 
   const result = await service.getApplications(req.user!, {
     page,
     limit,
     status,
-    tab,
     applicationNumber,
     regionId,
     districtId,
   });
   res.status(200).json({ status: 'success', ...result });
+}
+
+export async function getMyCount(req: Request, res: Response) {
+  const data = await service.getMyCount(req.user!);
+  res.status(200).json({ status: 'success', data });
 }
 
 export async function getApplicationById(req: Request, res: Response) {
@@ -43,7 +49,6 @@ export async function performAction(req: Request, res: Response) {
 
 export async function getAvailableActions(req: Request, res: Response) {
   const app = await service.getApplicationById(Number(req.params.id));
-  const firstGeo = app.geographicObjects?.[0];
   const actions = service.getAvailableActionsForUser(
     app.currentStatus,
     req.user!.role,

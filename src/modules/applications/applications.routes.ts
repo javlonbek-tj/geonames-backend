@@ -7,6 +7,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', controller.getApplications);
+router.get('/my-count', controller.getMyCount);
 router.get('/:id', controller.getApplicationById);
 router.get('/:id/actions', controller.getAvailableActions);
 router.post('/:id/action', controller.performAction);
