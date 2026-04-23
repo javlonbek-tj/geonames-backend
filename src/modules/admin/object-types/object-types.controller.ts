@@ -8,7 +8,7 @@ import {
 } from './object-types.schema';
 import { AppError } from '../../../utils/appError';
 
-// ─── Categoies ────────────────────────────────────────────────────────────
+// ─── Categories ────────────────────────────────────────────────────────────
 
 export async function getCategories(_req: Request, res: Response) {
   const data = await service.getCategories();

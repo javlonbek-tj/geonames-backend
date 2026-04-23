@@ -24,14 +24,12 @@ router.delete('/users/:id', usersController.deleteUser);
 
 // ─── Object categories ───────────────────────────────────────────────────
 
-router.get('/object-categories', objectTypesController.getCategories);
 router.post('/object-categories', objectTypesController.createCategory);
 router.patch('/object-categories/:id', objectTypesController.updateCategory);
 router.delete('/object-categories/:id', objectTypesController.deleteCategory);
 
 // ─── Object types ──────────────────────────────────────────────────────────
 
-router.get('/object-types', objectTypesController.getTypes);
 router.post('/object-types', objectTypesController.createType);
 router.patch('/object-types/:id', objectTypesController.updateType);
 router.delete('/object-types/:id', objectTypesController.deleteType);
