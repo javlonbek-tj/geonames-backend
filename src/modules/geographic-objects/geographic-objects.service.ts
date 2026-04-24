@@ -1,4 +1,4 @@
-import { eq, and, count, inArray, ilike, or, SQL, asc, sql } from 'drizzle-orm';
+import { eq, and, count, inArray, ilike, or, SQL, asc, sql, isNotNull } from 'drizzle-orm';
 import { db } from '../../db/db';
 import {
   geographicObjects,
@@ -25,48 +25,6 @@ function formatApplicationNumber(id: number): string {
 function formatRegistryNumber(id: number): string {
   const year = new Date().getFullYear();
   return `REG-${year}-${String(id).padStart(6, '0')}`;
-}
-
-export async function getMyObjects(
-  user: JwtPayload,
-  query: { page: number; limit: number },
-) {
-  const { page, limit } = query;
-  const offset = (page - 1) * limit;
-
-  const conditions: SQL[] = [eq(geographicObjects.createdBy, user.userId)];
-  if (user.districtId) {
-    conditions.push(eq(geographicObjects.districtId, user.districtId));
-  }
-  const where = and(...conditions);
-
-  const [data, [{ total }]] = await Promise.all([
-    db.query.geographicObjects.findMany({
-      where,
-      with: {
-        objectType: { with: { category: true } },
-        region: true,
-        district: true,
-        application: {
-          columns: { id: true, applicationNumber: true, currentStatus: true },
-        },
-      },
-      limit,
-      offset,
-      orderBy: (o, { desc }) => desc(o.createdAt),
-    }),
-    db.select({ total: count() }).from(geographicObjects).where(where),
-  ]);
-
-  return {
-    data,
-    meta: {
-      total: Number(total),
-      page,
-      limit,
-      totalPages: Math.ceil(Number(total) / limit),
-    },
-  };
 }
 
 export async function getObjectById(id: number) {
@@ -122,14 +80,7 @@ export async function createGeographicObjects(
     const missingReg = input.objects.some((o) => !o.registryNumber?.trim());
     if (missingReg) {
       throw new AppError(
-        'Reyestrdа mavjud obyektlar uchun reyestr raqami kiritilishi shart',
-        400,
-      );
-    }
-    const missingType = input.objects.some((o) => !o.objectTypeId);
-    if (missingType) {
-      throw new AppError(
-        'Reyestrdа mavjud obyektlar uchun obyekt turi (object_type_id) kiritilishi shart',
+        'Geojson faylda registryNumber attribut ustuni mavjud emas',
         400,
       );
     }
@@ -158,7 +109,7 @@ export async function createGeographicObjects(
           applicationId: app.id,
           nameUz: obj.nameUz ?? null,
           nameKrill: obj.nameKrill ?? null,
-          objectTypeId: obj.objectTypeId ?? null,
+          objectTypeId: obj.objectTypeId,
           regionId: input.regionId,
           districtId: input.districtId,
           geometry: obj.geometry,
@@ -244,7 +195,6 @@ export async function updateObjectNames(
         .set({
           nameUz: obj.nameUz,
           nameKrill: obj.nameKrill ?? null,
-          objectTypeId: obj.objectTypeId,
           registryNumber: current.existsInRegistry
             ? current.registryNumber
             : formatRegistryNumber(obj.id),
@@ -255,27 +205,47 @@ export async function updateObjectNames(
   });
 }
 
-export async function getRegistry(query: {
-  page: number;
-  limit: number;
-  search?: string;
-  regionId?: number;
-  districtId?: number;
-  objectTypeId?: number;
-  categoryId?: number;
-}) {
-  const {
-    page,
-    limit,
-    search,
-    regionId,
-    districtId,
-    objectTypeId,
-    categoryId,
-  } = query;
+const DISTRICT_ROLES = [
+  'dkp_filial',
+  'district_commission',
+  'district_hokimlik',
+];
+const REGIONAL_ROLES = [
+  'dkp_regional',
+  'regional_commission',
+  'regional_hokimlik',
+];
+
+export async function getRegistry(
+  user: JwtPayload | null,
+  query: {
+    page: number;
+    limit: number;
+    search?: string;
+    regionId?: number;
+    districtId?: number;
+    objectTypeId?: number;
+    categoryId?: number;
+  },
+) {
+  const { page, limit, search, objectTypeId, categoryId } = query;
   const offset = (page - 1) * limit;
 
-  const conditions: SQL[] = [eq(geographicObjects.isActive, true)];
+  const regionId =
+    query.regionId ??
+    (user && REGIONAL_ROLES.includes(user.role)
+      ? (user.regionId ?? undefined)
+      : undefined);
+  const districtId =
+    query.districtId ??
+    (user && DISTRICT_ROLES.includes(user.role)
+      ? (user.districtId ?? undefined)
+      : undefined);
+
+  const conditions: SQL[] = [
+    eq(geographicObjects.isActive, true),
+    isNotNull(geographicObjects.registryNumber),
+  ];
   if (regionId) conditions.push(eq(geographicObjects.regionId, regionId));
   if (districtId) conditions.push(eq(geographicObjects.districtId, districtId));
   if (objectTypeId) {
@@ -372,7 +342,7 @@ export async function updateGeometry(
     where: eq(geographicObjects.id, id),
   });
   if (!obj) throw new AppError('Geografik obyekt topilmadi', 404);
-  if (obj.createdBy !== user.userId) {
+  if (user.role !== 'admin' && obj.createdBy !== user.userId) {
     throw new AppError(
       "Siz faqat o'z obyektlaringizni tahrirlashingiz mumkin",
       403,

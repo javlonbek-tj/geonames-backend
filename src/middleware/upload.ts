@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { Request } from 'express';
 import { AppError } from '../utils/appError';
+import { transliterate } from '../utils/transliterate';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -11,7 +12,12 @@ const storage = multer.diskStorage({
     const applicationId = Array.isArray(_req.params.applicationId)
       ? _req.params.applicationId[0]
       : _req.params.applicationId;
-    const dir = path.join(process.cwd(), 'uploads', 'applications', applicationId);
+    const dir = path.join(
+      process.cwd(),
+      'uploads',
+      'applications',
+      applicationId,
+    );
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -19,15 +25,21 @@ const storage = multer.diskStorage({
   filename(_req, file, cb) {
     const ext = path.extname(file.originalname);
     const timestamp = Date.now();
-    const safeName = file.originalname
-      .replace(ext, '')
+    const safeName = transliterate(file.originalname.replace(ext, ''))
       .replace(/[^a-zA-Z0-9_\-]/g, '_')
       .slice(0, 50);
     cb(null, `${timestamp}-${safeName}${ext}`);
   },
 });
 
-const ALLOWED_EXTS = new Set(['.geojson', '.json', '.pdf', '.png', '.jpg', '.jpeg']);
+const ALLOWED_EXTS = new Set([
+  '.geojson',
+  '.json',
+  '.pdf',
+  '.png',
+  '.jpg',
+  '.jpeg',
+]);
 
 function fileFilter(
   _req: Request,
@@ -38,7 +50,9 @@ function fileFilter(
   if (ALLOWED_EXTS.has(ext)) {
     cb(null, true);
   } else {
-    cb(new AppError('Faqat GeoJSON, PDF, PNG, JPG fayllari qabul qilinadi', 400));
+    cb(
+      new AppError('Faqat GeoJSON, PDF, PNG, JPG fayllari qabul qilinadi', 400),
+    );
   }
 }
 

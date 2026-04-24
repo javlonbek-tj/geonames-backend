@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { loginSchema } from './auth.schema';
+import { loginSchema, changePasswordSchema } from './auth.schema';
 import * as authService from './auth.service';
 import { AppError } from '../../utils/appError';
 
@@ -61,4 +61,15 @@ export async function me(req: Request, res: Response) {
     status: 'success',
     user: req.user,
   });
+}
+
+export async function changePassword(req: Request, res: Response) {
+  const parsed = changePasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new AppError(parsed.error.issues[0].message, 400);
+  }
+
+  await authService.changePassword(req.user!.userId, parsed.data);
+
+  res.status(200).json({ status: 'success', message: 'Parol muvaffaqiyatli yangilandi' });
 }

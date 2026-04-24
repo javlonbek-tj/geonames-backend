@@ -16,4 +16,7 @@ router.post('/logout', authController.logout);
 // GET /api/auth/me  — protected
 router.get('/me', authenticate, authController.me);
 
+// PATCH /api/auth/change-password  — protected
+router.patch('/change-password', authenticate, authController.changePassword);
+
 export default router;

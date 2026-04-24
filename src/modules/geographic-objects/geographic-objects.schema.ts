@@ -20,7 +20,7 @@ const objectItemSchema = z.object({
   nameUz: z.string().trim().min(1).max(200).optional(),
   nameKrill: z.string().trim().max(200).optional(),
   registryNumber: z.string().trim().max(50).optional(),
-  objectTypeId: z.number().int().positive().optional(),
+  objectTypeId: z.number().int().positive('Obyekt turi tanlanishi shart'),
   geometry: geometrySchema,
 });
 
@@ -40,7 +40,6 @@ export const updateObjectNamesSchema = z.object({
         id: z.number().int().positive(),
         nameUz: z.string().trim().min(1, 'Nomi kiritilishi shart').max(200),
         nameKrill: z.string().trim().max(200).optional(),
-        objectTypeId: z.number().int().positive('Obyekt turi tanlanishi shart'),
       }),
     )
     .min(1),

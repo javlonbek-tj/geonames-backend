@@ -1,16 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/appError';
+import { userRoleEnum } from '../db/schema';
 
-type Role =
-  | 'admin'
-  | 'dkp_filial'
-  | 'district_commission'
-  | 'district_hokimlik'
-  | 'regional_commission'
-  | 'regional_hokimlik'
-  | 'kadastr_agency'
-  | 'dkp_central'
-  | 'peoples_council';
+type Role = (typeof userRoleEnum.enumValues)[number];
 
 export function authorize(...roles: Role[]) {
   return (req: Request, _res: Response, next: NextFunction) => {

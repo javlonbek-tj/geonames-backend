@@ -1,32 +1,5 @@
 import { z } from 'zod';
-
-const roles = [
-  'admin',
-  'dkp_filial',
-  'dkp_regional',
-  'dkp_central',
-  'district_commission',
-  'district_hokimlik',
-  'regional_commission',
-  'regional_hokimlik',
-  'kadastr_agency',
-] as const;
-
-const commissionPositions = [
-  'hokim',
-  'hokim_deputy',
-  'economics_head',
-  'construction_head',
-  'poverty_head',
-  'ecology_head',
-  'culture_head',
-  'spirituality_head',
-  'newspaper_head',
-  'dkp_head',
-  'historian',
-  'linguist',
-  'geographer',
-] as const;
+import { userRoleEnum, commissionPositionEnum } from '../../../db/schema';
 
 // Regional roles
 const regionalRoles = [
@@ -55,10 +28,10 @@ export const createUserSchema = z
       ),
     password: z.string().min(8, "Parol kamida 8 ta belgi bo'lishi kerak"),
     fullName: z.string().trim().min(2, "F.I.O. kamida 2 ta belgi bo'lishi kerak").max(200),
-    role: z.enum(roles, { error: "Noto'g'ri rol" }),
+    role: z.enum(userRoleEnum.enumValues, { error: "Noto'g'ri rol" }),
     regionId: z.number().int().positive().optional(),
     districtId: z.number().int().positive().optional(),
-    position: z.enum(commissionPositions).optional(),
+    position: z.enum(commissionPositionEnum.enumValues).optional(),
   })
   .refine(
     (data) => {
@@ -88,10 +61,10 @@ export const createUserSchema = z
 export const updateUserSchema = z
   .object({
     fullName: z.string().trim().min(2).max(200).optional(),
-    role: z.enum(roles).optional(),
+    role: z.enum(userRoleEnum.enumValues).optional(),
     regionId: z.number().int().positive().nullable().optional(),
     districtId: z.number().int().positive().nullable().optional(),
-    position: z.enum(commissionPositions).nullable().optional(),
+    position: z.enum(commissionPositionEnum.enumValues).nullable().optional(),
     isActive: z.boolean().optional(),
     isBlocked: z.boolean().optional(),
   })

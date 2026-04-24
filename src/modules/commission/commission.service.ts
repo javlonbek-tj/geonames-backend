@@ -1,15 +1,11 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '../../db/db';
-import { commissionApprovals, applications, users } from '../../db/schema';
+import { commissionApprovals, applications, users, commissionPositionEnum } from '../../db/schema';
 import { AppError } from '../../utils/appError';
 import { APP_STATUS } from '../../constants/app-status';
 import type { JwtPayload } from '../auth/auth.service';
 
-export const REQUIRED_POSITIONS = [
-  'hokim', 'hokim_deputy', 'economics_head', 'construction_head',
-  'poverty_head', 'ecology_head', 'culture_head', 'spirituality_head',
-  'newspaper_head', 'dkp_head', 'historian', 'linguist', 'geographer',
-] as const;
+export const REQUIRED_POSITIONS = commissionPositionEnum.enumValues;
 
 export async function getApprovals(applicationId: number) {
   return db.query.commissionApprovals.findMany({

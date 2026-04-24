@@ -75,7 +75,7 @@ export async function submitVote(req: Request, res: Response) {
 export async function getPublicRegistry(req: Request, res: Response) {
   const { page = '1', limit = '10', search, regionId, districtId, objectTypeId, categoryId } =
     req.query as Record<string, string>;
-  const data = await getRegistry({
+  const data = await getRegistry(null, {
     page: Number(page),
     limit: Number(limit),
     search: search || undefined,

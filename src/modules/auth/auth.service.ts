@@ -5,7 +5,7 @@ import { db } from '../../db/db';
 import { users, refreshTokens } from '../../db/schema';
 import { ENV } from '../../config';
 import { AppError } from '../../utils/appError';
-import type { LoginInput } from './auth.schema';
+import type { LoginInput, ChangePasswordInput } from './auth.schema';
 
 export interface JwtPayload {
   userId: number;
@@ -18,8 +18,8 @@ export interface JwtPayload {
 }
 
 const ACCESS_TOKEN_EXPIRES = '15m';
-const REFRESH_TOKEN_EXPIRES = '7d';
-export const REFRESH_TOKEN_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000;
+const REFRESH_TOKEN_EXPIRES = '8h';
+export const REFRESH_TOKEN_EXPIRES_MS = 8 * 60 * 60 * 1000;
 
 export function signAccessToken(payload: JwtPayload): string {
   return jwt.sign(payload, ENV.JWT_ACCESS_SECRET, {
@@ -130,4 +130,18 @@ export async function refresh(token: string) {
 
 export async function logout(token: string) {
   await db.delete(refreshTokens).where(eq(refreshTokens.token, token));
+}
+
+export async function changePassword(userId: number, input: ChangePasswordInput) {
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user) throw new AppError('Foydalanuvchi topilmadi', 404);
+
+  const match = await bcrypt.compare(input.oldPassword, user.passwordHash);
+  if (!match) throw new AppError("Eski parol noto'g'ri", 400);
+
+  const passwordHash = await bcrypt.hash(input.newPassword, 12);
+  await db
+    .update(users)
+    .set({ passwordHash, passwordChangedAt: new Date(), updatedAt: new Date() })
+    .where(eq(users.id, userId));
 }
