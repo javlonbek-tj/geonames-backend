@@ -22,7 +22,6 @@ export const citizens = pgTable('citizens', {
 export const citizenOtps = pgTable('citizen_otps', {
   id: serial('id').primaryKey(),
   sessionId: text('session_id').notNull().unique(),
-  telegramId: varchar('telegram_id', { length: 50 }).unique(),
   phone: varchar('phone', { length: 20 }),
   code: varchar('code', { length: 6 }).notNull(),
   used: boolean('used').default(false).notNull(),

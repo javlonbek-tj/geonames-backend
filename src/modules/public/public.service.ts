@@ -35,7 +35,9 @@ export async function requestOtp(
   const sessionId = randomBytes(24).toString('hex');
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-  await db.insert(citizenOtps).values({ sessionId, phone: normalizedPhone, code, expiresAt });
+  await db
+    .insert(citizenOtps)
+    .values({ sessionId, phone: normalizedPhone, code, expiresAt });
   await sendOtp(citizen.telegramId, code);
 
   return { sessionId };
@@ -70,9 +72,7 @@ export async function verifyOtp(
     .where(eq(citizenOtps.id, otp.id));
 
   const citizen = await db.query.citizens.findFirst({
-    where: otp.telegramId
-      ? eq(citizens.telegramId, otp.telegramId)
-      : eq(citizens.phone, otp.phone!),
+    where: eq(citizens.phone, otp.phone!),
   });
   if (!citizen) throw new AppError('Fuqaro topilmadi', 404);
 

@@ -6,6 +6,12 @@ import { eq } from 'drizzle-orm';
 
 let bot: TelegramBot | null = null;
 
+function logBotError(context: string, err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  const stack = ENV.NODE_ENV === 'development' && err instanceof Error ? `\n${err.stack}` : '';
+  console.error(`[Bot] ${context} xatolik: ${message}${stack}`);
+}
+
 export function getBot(): TelegramBot | null {
   return bot;
 }
@@ -68,7 +74,7 @@ export function startBot(): void {
         },
       );
     } catch (err) {
-      console.error('[Bot] /start xatolik:', err);
+      logBotError('/start', err);
     }
   });
 
@@ -93,12 +99,12 @@ export function startBot(): void {
         { parse_mode: 'Markdown', reply_markup: { remove_keyboard: true } },
       );
     } catch (err) {
-      console.error('[Bot] contact xatolik:', err);
+      logBotError('contact', err);
     }
   });
 
   bot.on('polling_error', (err) => {
-    console.error('[Bot] Polling xatolik:', err.message);
+    logBotError('polling', err);
     if (err.message.includes('409')) {
       bot!
         .stopPolling()

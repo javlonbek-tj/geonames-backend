@@ -8,7 +8,7 @@ import { applications } from './applications';
 import { applicationHistory } from './application-history';
 import { documents } from './documents';
 import { commissionApprovals } from './commission-approvals';
-import { citizens, citizenOtps } from './citizens';
+import { citizens } from './citizens';
 import { publicDiscussions, publicVotes } from './public-discussions';
 import { geoObjectFlags } from './geo-object-flags';
 
@@ -145,11 +145,8 @@ export const commissionApprovalsRelations = relations(
 );
 
 export const citizensRelations = relations(citizens, ({ many }) => ({
-  otps: many(citizenOtps),
   votes: many(publicVotes),
 }));
-
-export const citizenOtpsRelations = relations(citizenOtps, () => ({}));
 
 export const publicDiscussionsRelations = relations(
   publicDiscussions,

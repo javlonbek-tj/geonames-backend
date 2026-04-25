@@ -3,7 +3,9 @@ import { ENV } from '../config';
 import { AppError } from '../utils/appError';
 
 const sendErrorDev = (err: AppError, res: Response) => {
-  console.log('[ERROR]', err);
+  if (err.statusCode >= 500) {
+    console.error('[ERROR]', err);
+  }
   res.status(err.statusCode).json({
     status: err.status,
     message: err.message,
