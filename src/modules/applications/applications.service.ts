@@ -83,28 +83,9 @@ export async function getApplications(
     ? (user.regionId ?? undefined)
     : regionId;
 
-  let geoSubquery: ReturnType<typeof inArray> | undefined;
-  if (effectiveDistrictId || effectiveRegionId) {
-    const geoConditions = [];
-    if (effectiveDistrictId)
-      geoConditions.push(eq(geographicObjects.districtId, effectiveDistrictId));
-    if (effectiveRegionId)
-      geoConditions.push(eq(geographicObjects.regionId, effectiveRegionId));
-
-    const matchingAppIds = (
-      await db
-        .select({ id: geographicObjects.applicationId })
-        .from(geographicObjects)
-        .where(and(...geoConditions))
-    )
-      .map((g) => g.id)
-      .filter((id): id is number => id !== null);
-
-    if (matchingAppIds.length === 0) {
-      return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
-    }
-    geoSubquery = inArray(applications.id, matchingAppIds);
-  }
+  const geoFilter: any[] = [];
+  if (effectiveDistrictId) geoFilter.push(eq(applications.districtId, effectiveDistrictId));
+  else if (effectiveRegionId) geoFilter.push(eq(applications.regionId, effectiveRegionId));
 
   if (user.role === 'admin') {
     const conditions = [];
@@ -113,7 +94,7 @@ export async function getApplications(
       conditions.push(
         ilike(applications.applicationNumber, `%${applicationNumber}%`),
       );
-    if (geoSubquery) conditions.push(geoSubquery);
+    conditions.push(...geoFilter);
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const [data, [{ total }]] = await Promise.all([
@@ -168,7 +149,7 @@ export async function getApplications(
     conditions.push(
       ilike(applications.applicationNumber, `%${applicationNumber}%`),
     );
-  if (geoSubquery) conditions.push(geoSubquery);
+  conditions.push(...geoFilter);
   const where = and(...conditions);
 
   const [data, [{ total }]] = await Promise.all([
@@ -216,27 +197,11 @@ export async function getMyCount(user: JwtPayload) {
   ];
 
   if (isDistrictRole && user.districtId) {
-    const matchingAppIds = (
-      await db
-        .select({ id: geographicObjects.applicationId })
-        .from(geographicObjects)
-        .where(eq(geographicObjects.districtId, user.districtId))
-    ).map((g) => g.id).filter((id): id is number => id !== null);
-
-    if (matchingAppIds.length === 0) return { count: 0 };
-    conditions.push(inArray(applications.id, matchingAppIds));
+    conditions.push(eq(applications.districtId, user.districtId));
   }
 
   if (isRegionalRole && user.regionId) {
-    const matchingAppIds = (
-      await db
-        .select({ id: geographicObjects.applicationId })
-        .from(geographicObjects)
-        .where(eq(geographicObjects.regionId, user.regionId))
-    ).map((g) => g.id).filter((id): id is number => id !== null);
-
-    if (matchingAppIds.length === 0) return { count: 0 };
-    conditions.push(inArray(applications.id, matchingAppIds));
+    conditions.push(eq(applications.regionId, user.regionId));
   }
 
   const [{ total }] = await db

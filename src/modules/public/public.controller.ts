@@ -30,12 +30,14 @@ export async function verifyOtp(req: Request, res: Response) {
 
 export async function listDiscussions(req: Request, res: Response) {
   const citizenId = (req as Request & { citizenId?: number }).citizenId ?? null;
-  const { regionId, districtId } = req.query as Record<string, string>;
-  const data = await service.listDiscussions(citizenId, {
+  const { regionId, districtId, page, limit } = req.query as Record<string, string>;
+  const result = await service.listDiscussions(citizenId, {
     regionId: regionId ? Number(regionId) : undefined,
     districtId: districtId ? Number(districtId) : undefined,
+    page: page ? Number(page) : undefined,
+    limit: limit ? Number(limit) : undefined,
   });
-  res.json({ status: 'success', data });
+  res.json({ status: 'success', ...result });
 }
 
 export async function getDiscussion(req: Request, res: Response) {

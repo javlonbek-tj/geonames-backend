@@ -93,6 +93,8 @@ export async function createGeographicObjects(
         applicationNumber: 'temp',
         currentStatus: APP_STATUS.STEP_1_GEOMETRY_UPLOADED,
         createdBy: user.userId,
+        regionId: input.regionId,
+        districtId: input.districtId,
       })
       .returning();
 

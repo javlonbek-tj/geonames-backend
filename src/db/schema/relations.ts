@@ -106,6 +106,14 @@ export const applicationsRelations = relations(
       references: [users.id],
       relationName: 'currentHandler',
     }),
+    region: one(regions, {
+      fields: [applications.regionId],
+      references: [regions.id],
+    }),
+    district: one(districts, {
+      fields: [applications.districtId],
+      references: [districts.id],
+    }),
     history: many(applicationHistory),
     documents: many(documents),
     commissionApprovals: many(commissionApprovals),
@@ -158,6 +166,14 @@ export const publicDiscussionsRelations = relations(
     geoObject: one(geographicObjects, {
       fields: [publicDiscussions.geoObjectId],
       references: [geographicObjects.id],
+    }),
+    region: one(regions, {
+      fields: [publicDiscussions.regionId],
+      references: [regions.id],
+    }),
+    district: one(districts, {
+      fields: [publicDiscussions.districtId],
+      references: [districts.id],
     }),
     votes: many(publicVotes),
   }),

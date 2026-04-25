@@ -1,0 +1,4 @@
+ALTER TABLE "public_discussions" ADD COLUMN "region_id" integer;--> statement-breakpoint
+ALTER TABLE "public_discussions" ADD COLUMN "district_id" integer;--> statement-breakpoint
+ALTER TABLE "public_discussions" ADD CONSTRAINT "public_discussions_region_id_regions_id_fk" FOREIGN KEY ("region_id") REFERENCES "public"."regions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "public_discussions" ADD CONSTRAINT "public_discussions_district_id_districts_id_fk" FOREIGN KEY ("district_id") REFERENCES "public"."districts"("id") ON DELETE no action ON UPDATE no action;

@@ -17,6 +17,13 @@ export async function getApplicationFlags(req: Request, res: Response) {
 }
 
 export async function listNonCompliant(req: Request, res: Response) {
-  const data = await service.listNonCompliant();
-  res.status(200).json({ status: 'success', data });
+  const { regionId, districtId, search, page, limit } = req.query as Record<string, string>;
+  const result = await service.listNonCompliant({
+    regionId: regionId ? Number(regionId) : undefined,
+    districtId: districtId ? Number(districtId) : undefined,
+    search: search || undefined,
+    page: page ? Number(page) : undefined,
+    limit: limit ? Number(limit) : undefined,
+  });
+  res.status(200).json({ status: 'success', ...result });
 }

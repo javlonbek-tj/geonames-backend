@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
-import { and, eq, gt, inArray } from 'drizzle-orm';
+import { and, eq, gt, count, sql } from 'drizzle-orm';
 import { db } from '../../db/db';
 import {
   citizens,
@@ -97,50 +97,53 @@ export async function verifyOtp(
 
 export async function listDiscussions(
   citizenId: number | null,
-  filters: { regionId?: number; districtId?: number } = {},
+  filters: { regionId?: number; districtId?: number; page?: number; limit?: number } = {},
 ) {
-  let discussionWhere = undefined;
+  const page = filters.page ?? 1;
+  const limit = Math.min(filters.limit ?? 20, 100);
+  const offset = (page - 1) * limit;
 
-  if (filters.districtId || filters.regionId) {
-    const geoConditions = [];
-    if (filters.districtId)
-      geoConditions.push(eq(geographicObjects.districtId, filters.districtId));
-    if (filters.regionId)
-      geoConditions.push(eq(geographicObjects.regionId, filters.regionId));
+  const conditions = [];
+  if (filters.districtId) conditions.push(eq(publicDiscussions.districtId, filters.districtId));
+  else if (filters.regionId) conditions.push(eq(publicDiscussions.regionId, filters.regionId));
+  const discussionWhere = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const matchingIds = (
-      await db
-        .select({ id: geographicObjects.id })
-        .from(geographicObjects)
-        .where(and(...geoConditions))
-    ).map((g) => g.id);
-
-    if (matchingIds.length === 0) return [];
-    discussionWhere = inArray(publicDiscussions.geoObjectId, matchingIds);
-  }
-
-  const filtered = await db.query.publicDiscussions.findMany({
-    where: discussionWhere,
-    with: {
-      geoObject: {
-        with: {
-          objectType: true,
-          district: true,
-          region: true,
+  const [discussions, [{ total }], voteCounts, myVotes] = await Promise.all([
+    db.query.publicDiscussions.findMany({
+      where: discussionWhere,
+      with: {
+        geoObject: {
+          with: { objectType: true, district: true, region: true },
         },
       },
-      votes: { columns: { vote: true, citizenId: true } },
-    },
-    orderBy: (t, { desc }) => [desc(t.createdAt)],
-  });
+      orderBy: (t, { desc }) => [desc(t.createdAt)],
+      limit,
+      offset,
+    }),
+    db.select({ total: count() }).from(publicDiscussions).where(discussionWhere),
+    db
+      .select({
+        discussionId: publicVotes.discussionId,
+        supportCount: sql<number>`count(*) filter (where ${publicVotes.vote} = 'support')`,
+        opposeCount: sql<number>`count(*) filter (where ${publicVotes.vote} = 'oppose')`,
+      })
+      .from(publicVotes)
+      .groupBy(publicVotes.discussionId),
+    citizenId
+      ? db.select({ discussionId: publicVotes.discussionId, vote: publicVotes.vote })
+          .from(publicVotes)
+          .where(eq(publicVotes.citizenId, citizenId))
+      : Promise.resolve([]),
+  ]);
 
-  return filtered.map((d) => {
+  const voteMap = new Map(voteCounts.map((v) => [v.discussionId, v]));
+  const myVoteMap = new Map((myVotes as { discussionId: number; vote: string }[]).map((v) => [v.discussionId, v.vote]));
+
+  const data = discussions.map((d) => {
     const geo = d.geoObject;
-    const supportCount = d.votes.filter((v) => v.vote === 'support').length;
-    const opposeCount = d.votes.filter((v) => v.vote === 'oppose').length;
-    const myVote = citizenId
-      ? (d.votes.find((v) => v.citizenId === citizenId)?.vote ?? null)
-      : null;
+    const votes = voteMap.get(d.id);
+    const supportCount = Number(votes?.supportCount ?? 0);
+    const opposeCount = Number(votes?.opposeCount ?? 0);
     return {
       id: d.id,
       applicationId: d.applicationId,
@@ -155,9 +158,14 @@ export async function listDiscussions(
       supportCount,
       opposeCount,
       voteCount: supportCount + opposeCount,
-      myVote: myVote as 'support' | 'oppose' | null,
+      myVote: (myVoteMap.get(d.id) ?? null) as 'support' | 'oppose' | null,
     };
   });
+
+  return {
+    data,
+    meta: { total: Number(total), page, limit, totalPages: Math.ceil(Number(total) / limit) },
+  };
 }
 
 export async function getDiscussion(id: number, citizenId: number | null) {
@@ -238,14 +246,20 @@ export async function createDiscussion(applicationId: number): Promise<void> {
 
   const geoObjs = await db.query.geographicObjects.findMany({
     where: eq(geographicObjects.applicationId, applicationId),
-    columns: { id: true },
+    columns: { id: true, regionId: true, districtId: true },
   });
 
   if (geoObjs.length === 0) return;
 
   await db
     .insert(publicDiscussions)
-    .values(geoObjs.map((g) => ({ applicationId, geoObjectId: g.id, endsAt })))
+    .values(geoObjs.map((g) => ({
+      applicationId,
+      geoObjectId: g.id,
+      regionId: g.regionId,
+      districtId: g.districtId,
+      endsAt,
+    })))
     .onConflictDoUpdate({
       target: [publicDiscussions.applicationId, publicDiscussions.geoObjectId],
       set: { endsAt, createdAt: new Date() },

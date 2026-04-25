@@ -9,6 +9,8 @@ import {
 import { applications } from './applications';
 import { citizens } from './citizens';
 import { geographicObjects } from './geographic-objects';
+import { regions } from './regions';
+import { districts } from './districts';
 
 export const voteTypeEnum = pgEnum('vote_type', ['support', 'oppose']);
 
@@ -22,6 +24,8 @@ export const publicDiscussions = pgTable(
     geoObjectId: integer('geo_object_id')
       .references(() => geographicObjects.id, { onDelete: 'cascade' })
       .notNull(),
+    regionId: integer('region_id').references(() => regions.id),
+    districtId: integer('district_id').references(() => districts.id),
     endsAt: timestamp('ends_at').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },

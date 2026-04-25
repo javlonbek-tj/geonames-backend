@@ -1,6 +1,14 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, ilike, or, desc, count, SQL } from 'drizzle-orm';
 import { db } from '../../db/db';
-import { geoObjectFlags } from '../../db/schema';
+import {
+  geoObjectFlags,
+  geographicObjects,
+  applications,
+  users,
+  objectTypes,
+  regions,
+  districts,
+} from '../../db/schema';
 
 export async function toggleFlag(
   applicationId: number,
@@ -36,37 +44,81 @@ export async function getApplicationFlags(applicationId: number) {
   });
 }
 
-export async function listNonCompliant() {
-  const rows = await db.query.geoObjectFlags.findMany({
-    with: {
-      geoObject: {
-        with: {
-          region: true,
-          district: true,
-          objectType: true,
-        },
-      },
-      application: {
-        columns: { id: true, applicationNumber: true, currentStatus: true },
-      },
-      marker: {
-        columns: { id: true, fullName: true, username: true },
-      },
-    },
-    orderBy: (t, { desc }) => [desc(t.createdAt)],
-  });
+export async function listNonCompliant(filters: {
+  regionId?: number;
+  districtId?: number;
+  search?: string;
+  page?: number;
+  limit?: number;
+} = {}) {
+  const page = filters.page ?? 1;
+  const limit = Math.min(filters.limit ?? 20, 100);
+  const offset = (page - 1) * limit;
+  const conditions: SQL[] = [];
 
-  return rows.map((f) => ({
-    id: f.id,
-    applicationId: f.applicationId,
-    applicationNumber: f.application?.applicationNumber ?? '—',
-    geoObjectId: f.geoObjectId,
-    nameUz: f.geoObject?.nameUz ?? '—',
-    objectType: f.geoObject?.objectType?.nameUz ?? '—',
-    regionName: f.geoObject?.region?.nameUz ?? null,
-    districtName: f.geoObject?.district?.nameUz ?? null,
-    comment: f.comment,
-    markedBy: f.marker?.fullName ?? f.marker?.username ?? '—',
-    createdAt: f.createdAt.toISOString(),
-  }));
+  if (filters.districtId) {
+    conditions.push(eq(geographicObjects.districtId, filters.districtId));
+  } else if (filters.regionId) {
+    conditions.push(eq(geographicObjects.regionId, filters.regionId));
+  }
+
+  if (filters.search) {
+    const q = `%${filters.search}%`;
+    conditions.push(
+      or(
+        ilike(geographicObjects.nameUz, q),
+        ilike(applications.applicationNumber, q),
+      )!,
+    );
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const baseQuery = db
+    .select({
+      id: geoObjectFlags.id,
+      applicationId: geoObjectFlags.applicationId,
+      applicationNumber: applications.applicationNumber,
+      geoObjectId: geoObjectFlags.geoObjectId,
+      nameUz: geographicObjects.nameUz,
+      objectType: objectTypes.nameUz,
+      regionName: regions.nameUz,
+      districtName: districts.nameUz,
+      comment: geoObjectFlags.comment,
+      markedBy: users.fullName,
+      markedByUsername: users.username,
+      createdAt: geoObjectFlags.createdAt,
+    })
+    .from(geoObjectFlags)
+    .leftJoin(geographicObjects, eq(geoObjectFlags.geoObjectId, geographicObjects.id))
+    .leftJoin(objectTypes, eq(geographicObjects.objectTypeId, objectTypes.id))
+    .leftJoin(regions, eq(geographicObjects.regionId, regions.id))
+    .leftJoin(districts, eq(geographicObjects.districtId, districts.id))
+    .leftJoin(applications, eq(geoObjectFlags.applicationId, applications.id))
+    .leftJoin(users, eq(geoObjectFlags.markedBy, users.id));
+
+  const [rows, [{ total }]] = await Promise.all([
+    baseQuery.where(where).orderBy(desc(geoObjectFlags.createdAt)).limit(limit).offset(offset),
+    db.select({ total: count() }).from(geoObjectFlags)
+      .leftJoin(geographicObjects, eq(geoObjectFlags.geoObjectId, geographicObjects.id))
+      .leftJoin(applications, eq(geoObjectFlags.applicationId, applications.id))
+      .where(where),
+  ]);
+
+  return {
+    data: rows.map((f) => ({
+      id: f.id,
+      applicationId: f.applicationId,
+      applicationNumber: f.applicationNumber ?? '—',
+      geoObjectId: f.geoObjectId,
+      nameUz: f.nameUz ?? '—',
+      objectType: f.objectType ?? '—',
+      regionName: f.regionName ?? null,
+      districtName: f.districtName ?? null,
+      comment: f.comment,
+      markedBy: f.markedBy ?? f.markedByUsername ?? '—',
+      createdAt: f.createdAt.toISOString(),
+    })),
+    meta: { total: Number(total), page, limit, totalPages: Math.ceil(Number(total) / limit) },
+  };
 }
