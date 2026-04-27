@@ -14,7 +14,7 @@ const geometrySchema = z.looseObject({
   ]),
 });
 
-// existsInRegistry=true  →  nameUz, nameKrill, registryNumber are taken from geojson
+// existsInRegistry=true  →  nameUz, registryNumber are required (from geojson)
 // existsInRegistry=false →  no name, later in workflow
 const objectItemSchema = z.object({
   nameUz: z.string().trim().min(1).max(200).optional(),
@@ -24,14 +24,29 @@ const objectItemSchema = z.object({
   geometry: geometrySchema,
 });
 
-export const createGeographicObjectSchema = z.object({
-  regionId: z.number().int().positive('Viloyat tanlanishi shart'),
-  districtId: z.number().int().positive('Tuman tanlanishi shart'),
-  existsInRegistry: z.boolean(),
-  objects: z
-    .array(objectItemSchema)
-    .min(1, 'Kamida bitta obyekt kiritilishi shart'),
-});
+export const createGeographicObjectSchema = z
+  .object({
+    regionId: z.number().int().positive('Viloyat tanlanishi shart'),
+    districtId: z.number().int().positive('Tuman tanlanishi shart'),
+    existsInRegistry: z.boolean(),
+    objects: z
+      .array(objectItemSchema)
+      .min(1, 'Kamida bitta obyekt kiritilishi shart'),
+  })
+  .refine(
+    (data) => {
+      if (!data.existsInRegistry) return true;
+      return data.objects.every((o) => o.registryNumber?.trim());
+    },
+    { message: 'Geojson faylda registryNumber attribut ustuni mavjud emas' },
+  )
+  .refine(
+    (data) => {
+      if (!data.existsInRegistry) return true;
+      return data.objects.every((o) => o.nameUz?.trim());
+    },
+    { message: 'Geojson faylda nameUz attribut ustuni mavjud emas' },
+  );
 
 export const updateObjectNamesSchema = z.object({
   objects: z

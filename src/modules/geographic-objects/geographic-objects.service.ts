@@ -76,15 +76,6 @@ export async function createGeographicObjects(
     );
   if (!district) throw new AppError("Tuman yoki viloyat noto'g'ri", 400);
 
-  if (input.existsInRegistry) {
-    const missingReg = input.objects.some((o) => !o.registryNumber?.trim());
-    if (missingReg) {
-      throw new AppError(
-        'Geojson faylda registryNumber attribut ustuni mavjud emas',
-        400,
-      );
-    }
-  }
 
   return db.transaction(async (tx) => {
     const [app] = await tx

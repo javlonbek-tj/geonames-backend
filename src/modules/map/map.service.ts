@@ -2,55 +2,27 @@ import { eq, and, isNotNull, inArray } from 'drizzle-orm';
 import { db } from '../../db/db';
 import { geographicObjects, regions, districts } from '../../db/schema';
 
-// Object type IDs for MFY and streets (fetched once, cached in module scope)
-let streetTypeIds: number[] | null = null;
-let mfyTypeId: number | null = null;
-
 async function getRelevantTypeIds() {
-  if (streetTypeIds && mfyTypeId) return { streetTypeIds, mfyTypeId };
-
   const types = await db.query.objectTypes.findMany({
     where: (t, { inArray }) =>
-      inArray(t.nameUz, ["Ko'cha", "Tor ko'cha", "Berk ko'cha", "Shoh ko'cha", 'Mahalla']),
+      inArray(t.nameUz, [
+        "Ko'cha",
+        "Tor ko'cha",
+        "Berk ko'cha",
+        "Shoh ko'cha",
+        'Mahalla',
+      ]),
     columns: { id: true, nameUz: true },
   });
 
-  mfyTypeId = types.find((t) => t.nameUz === 'Mahalla')?.id ?? null;
-  streetTypeIds = types
-    .filter((t) => ["Ko'cha", "Tor ko'cha", "Berk ko'cha", "Shoh ko'cha"].includes(t.nameUz))
+  const mfyTypeId = types.find((t) => t.nameUz === 'Mahalla')?.id ?? null;
+  const streetTypeIds = types
+    .filter((t) =>
+      ["Ko'cha", "Tor ko'cha", "Berk ko'cha", "Shoh ko'cha"].includes(t.nameUz),
+    )
     .map((t) => t.id);
 
   return { streetTypeIds, mfyTypeId };
-}
-
-function toFeatureCollection(
-  rows: Array<{
-    id: number;
-    nameUz: string | null;
-    soato: string | null;
-    regionId: number;
-    districtId: number;
-    geometry: unknown;
-    extra?: Record<string, unknown>;
-  }>,
-) {
-  return {
-    type: 'FeatureCollection' as const,
-    features: rows
-      .filter((r) => r.geometry)
-      .map((r) => ({
-        type: 'Feature' as const,
-        geometry: r.geometry,
-        properties: {
-          id: r.id,
-          nameUz: r.nameUz,
-          soato: r.soato,
-          regionId: r.regionId,
-          districtId: r.districtId,
-          ...r.extra,
-        },
-      })),
-  };
 }
 
 /** Level 0 — all 14 regions */
@@ -72,20 +44,18 @@ export async function getRegionGeometries() {
 
   return {
     type: 'FeatureCollection' as const,
-    features: rows
-      .filter((r) => r.geometry)
-      .map((r) => ({
-        type: 'Feature' as const,
-        geometry: r.geometry,
-        properties: {
-          id: r.id,
-          nameUz: r.regionName ?? r.nameUz,
-          soato: r.soato,
-          regionId: r.regionId,
-          districtId: r.districtId,
-          regionDbId: r.regionDbId,
-        },
-      })),
+    features: rows.map((r) => ({
+      type: 'Feature' as const,
+      geometry: r.geometry,
+      properties: {
+        id: r.id,
+        nameUz: r.regionName ?? r.nameUz,
+        soato: r.soato,
+        regionId: r.regionId,
+        districtId: r.districtId,
+        regionDbId: r.regionDbId,
+      },
+    })),
   };
 }
 
@@ -119,20 +89,18 @@ export async function getDistrictGeometries(regionId: number) {
 
   return {
     type: 'FeatureCollection' as const,
-    features: rows
-      .filter((r) => r.geometry)
-      .map((r) => ({
-        type: 'Feature' as const,
-        geometry: r.geometry,
-        properties: {
-          id: r.id,
-          nameUz: r.districtName ?? r.nameUz,
-          soato: r.soato,
-          regionId: r.regionId,
-          districtId: r.districtId,
-          districtDbId: r.districtDbId,
-        },
-      })),
+    features: rows.map((r) => ({
+      type: 'Feature' as const,
+      geometry: r.geometry,
+      properties: {
+        id: r.id,
+        nameUz: r.districtName ?? r.nameUz,
+        soato: r.soato,
+        regionId: r.regionId,
+        districtId: r.districtId,
+        districtDbId: r.districtDbId,
+      },
+    })),
   };
 }
 
@@ -141,7 +109,8 @@ export async function getDistrictObjects(districtId: number) {
   const { streetTypeIds: sIds, mfyTypeId: mId } = await getRelevantTypeIds();
   const allTypeIds = [mId, ...(sIds ?? [])].filter(Boolean) as number[];
 
-  if (allTypeIds.length === 0) return { type: 'FeatureCollection' as const, features: [] };
+  if (allTypeIds.length === 0)
+    return { type: 'FeatureCollection' as const, features: [] };
 
   const rows = await db.query.geographicObjects.findMany({
     where: and(
@@ -167,9 +136,7 @@ export async function getDistrictObjects(districtId: number) {
 
   return {
     type: 'FeatureCollection' as const,
-    features: rows
-      .filter((r) => r.geometry)
-      .map((r) => ({
+    features: rows.map((r) => ({
         type: 'Feature' as const,
         geometry: r.geometry,
         properties: {
