@@ -67,10 +67,10 @@ export const updateGeometrySchema = z.object({
 export const updateRegistryObjectSchema = z.object({
   nameUz: z.string().trim().min(1).max(200).optional(),
   nameKrill: z.string().trim().max(200).optional(),
-  objectTypeId: z.number().int().positive().optional().nullable(),
+  objectTypeId: z.number().int().positive().optional(),
   regionId: z.number().int().positive().optional(),
   districtId: z.number().int().positive().optional(),
-  registryNumber: z.string().trim().max(50).optional().nullable(),
+  registryNumber: z.string().trim().max(50).optional(),
   basisDocument: z.string().trim().optional().nullable(),
   affiliation: z.string().trim().max(200).optional().nullable(),
   historicalName: z.string().trim().max(200).optional().nullable(),
