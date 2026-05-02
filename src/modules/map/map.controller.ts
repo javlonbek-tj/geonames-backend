@@ -17,3 +17,12 @@ export async function getDistrictObjects(req: Request, res: Response) {
   const data = await service.getDistrictObjects(districtId);
   res.json({ status: 'success', data });
 }
+
+export async function getRegistryObjects(req: Request, res: Response) {
+  const raw = req.query.typeIds as string | undefined;
+  const typeIds = raw ? raw.split(',').map(Number).filter(Boolean) : [];
+  const regionId = req.query.regionId ? Number(req.query.regionId) : undefined;
+  const districtId = req.query.districtId ? Number(req.query.districtId) : undefined;
+  const data = await service.getRegistryObjects({ typeIds, regionId, districtId });
+  res.json({ status: 'success', data });
+}

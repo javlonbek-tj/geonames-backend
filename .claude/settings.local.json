@@ -6,7 +6,9 @@
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
       "Bash(git revert *)",
-      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(xargs grep *)",
+      "PowerShell(New-Item *)"
     ]
   }
 }

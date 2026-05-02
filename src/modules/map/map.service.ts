@@ -2,6 +2,12 @@ import { eq, and, isNotNull, inArray } from 'drizzle-orm';
 import { db } from '../../db/db';
 import { geographicObjects, regions, districts } from '../../db/schema';
 
+export interface RegistryObjectsParams {
+  typeIds: number[];
+  regionId?: number;
+  districtId?: number;
+}
+
 async function getRelevantTypeIds() {
   const types = await db.query.objectTypes.findMany({
     where: (t, { inArray }) =>
@@ -99,6 +105,60 @@ export async function getDistrictGeometries(regionId: number) {
         regionId: r.regionId,
         districtId: r.districtId,
         districtDbId: r.districtDbId,
+      },
+    })),
+  };
+}
+
+/** Filtered registry objects by typeIds (+ optional region/district scope) */
+export async function getRegistryObjects(params: RegistryObjectsParams) {
+  if (params.typeIds.length === 0)
+    return { type: 'FeatureCollection' as const, features: [] };
+
+  const conditions = [
+    isNotNull(geographicObjects.geometry),
+    inArray(geographicObjects.objectTypeId, params.typeIds),
+    ...(params.regionId !== undefined
+      ? [eq(geographicObjects.regionId, params.regionId)]
+      : []),
+    ...(params.districtId !== undefined
+      ? [eq(geographicObjects.districtId, params.districtId)]
+      : []),
+  ];
+
+  const rows = await db.query.geographicObjects.findMany({
+    where: and(...conditions),
+    columns: {
+      id: true,
+      nameUz: true,
+      soato: true,
+      regionId: true,
+      districtId: true,
+      objectTypeId: true,
+      geometry: true,
+    },
+    with: {
+      objectType: { columns: { nameUz: true } },
+    },
+  });
+
+  return {
+    type: 'FeatureCollection' as const,
+    features: rows.map((r) => ({
+      type: 'Feature' as const,
+      geometry: r.geometry,
+      properties: {
+        id: r.id,
+        nameUz: r.nameUz,
+        soato: r.soato,
+        regionId: r.regionId,
+        districtId: r.districtId,
+        objectType: r.objectType?.nameUz ?? null,
+        objectTypeId: r.objectTypeId,
+        isMfy: r.objectType?.nameUz === 'Mahalla',
+        isStreet: ["Ko'cha", "Tor ko'cha", "Berk ko'cha", "Shoh ko'cha"].includes(
+          r.objectType?.nameUz ?? '',
+        ),
       },
     })),
   };
