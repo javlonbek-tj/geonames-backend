@@ -12,12 +12,6 @@ export async function getDistricts(req: Request, res: Response) {
   res.json({ status: 'success', data });
 }
 
-export async function getDistrictObjects(req: Request, res: Response) {
-  const districtId = Number(req.params.districtId);
-  const data = await service.getDistrictObjects(districtId);
-  res.json({ status: 'success', data });
-}
-
 export async function getRegistryObjects(req: Request, res: Response) {
   const raw = req.query.typeIds as string | undefined;
   const typeIds = raw ? raw.split(',').map(Number).filter(Boolean) : [];

@@ -8,30 +8,19 @@ export interface RegistryObjectsParams {
   districtId?: number;
 }
 
-async function getRelevantTypeIds() {
-  const types = await db.query.objectTypes.findMany({
-    where: (t, { inArray }) =>
-      inArray(t.nameUz, [
-        "Ko'cha",
-        "Tor ko'cha",
-        "Berk ko'cha",
-        "Shoh ko'cha",
-        'Mahalla',
-      ]),
-    columns: { id: true, nameUz: true },
-  });
+export const MFY_TYPE_NAMES = ['Mahalla'] as const;
+export const STREET_TYPE_NAMES = [
+  "Ko'cha",
+  "Tor ko'cha",
+  "Berk ko'cha",
+  "Shoh ko'cha",
+] as const;
 
-  const mfyTypeId = types.find((t) => t.nameUz === 'Mahalla')?.id ?? null;
-  const streetTypeIds = types
-    .filter((t) =>
-      ["Ko'cha", "Tor ko'cha", "Berk ko'cha", "Shoh ko'cha"].includes(t.nameUz),
-    )
-    .map((t) => t.id);
+const isMfyType = (name: string | null | undefined) =>
+  MFY_TYPE_NAMES.includes(name as never);
+const isStreetType = (name: string | null | undefined) =>
+  (STREET_TYPE_NAMES as readonly string[]).includes(name ?? '');
 
-  return { streetTypeIds, mfyTypeId };
-}
-
-/** Level 0 — all 14 regions */
 export async function getRegionGeometries() {
   const rows = await db
     .select({
@@ -65,7 +54,6 @@ export async function getRegionGeometries() {
   };
 }
 
-/** Level 1 — districts of a region */
 export async function getDistrictGeometries(regionId: number) {
   const rows = await db
     .select({
@@ -110,7 +98,6 @@ export async function getDistrictGeometries(regionId: number) {
   };
 }
 
-/** Filtered registry objects by typeIds (+ optional region/district scope) */
 export async function getRegistryObjects(params: RegistryObjectsParams) {
   if (params.typeIds.length === 0)
     return { type: 'FeatureCollection' as const, features: [] };
@@ -155,59 +142,9 @@ export async function getRegistryObjects(params: RegistryObjectsParams) {
         districtId: r.districtId,
         objectType: r.objectType?.nameUz ?? null,
         objectTypeId: r.objectTypeId,
-        isMfy: r.objectType?.nameUz === 'Mahalla',
-        isStreet: ["Ko'cha", "Tor ko'cha", "Berk ko'cha", "Shoh ko'cha"].includes(
-          r.objectType?.nameUz ?? '',
-        ),
+        isMfy: isMfyType(r.objectType?.nameUz),
+        isStreet: isStreetType(r.objectType?.nameUz),
       },
     })),
-  };
-}
-
-/** Level 2 — MFY + streets of a district */
-export async function getDistrictObjects(districtId: number) {
-  const { streetTypeIds: sIds, mfyTypeId: mId } = await getRelevantTypeIds();
-  const allTypeIds = [mId, ...(sIds ?? [])].filter(Boolean) as number[];
-
-  if (allTypeIds.length === 0)
-    return { type: 'FeatureCollection' as const, features: [] };
-
-  const rows = await db.query.geographicObjects.findMany({
-    where: and(
-      eq(geographicObjects.districtId, districtId),
-      isNotNull(geographicObjects.geometry),
-      inArray(geographicObjects.objectTypeId, allTypeIds),
-    ),
-    columns: {
-      id: true,
-      nameUz: true,
-      soato: true,
-      regionId: true,
-      districtId: true,
-      objectTypeId: true,
-      geometry: true,
-    },
-    with: {
-      objectType: { columns: { nameUz: true } },
-    },
-  });
-
-  const isMfy = (typeId: number | null) => typeId === mId;
-
-  return {
-    type: 'FeatureCollection' as const,
-    features: rows.map((r) => ({
-        type: 'Feature' as const,
-        geometry: r.geometry,
-        properties: {
-          id: r.id,
-          nameUz: r.nameUz,
-          soato: r.soato,
-          regionId: r.regionId,
-          districtId: r.districtId,
-          objectType: r.objectType?.nameUz ?? null,
-          isMfy: isMfy(r.objectTypeId),
-        },
-      })),
   };
 }
