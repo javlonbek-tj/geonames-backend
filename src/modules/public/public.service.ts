@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
-import { and, eq, gt, count, sql } from 'drizzle-orm';
+import { and, eq, gt, count, sql, ilike, or, inArray } from 'drizzle-orm';
 import { db } from '../../db/db';
 import {
   citizens,
@@ -97,7 +97,7 @@ export async function verifyOtp(
 
 export async function listDiscussions(
   citizenId: number | null,
-  filters: { regionId?: number; districtId?: number; page?: number; limit?: number } = {},
+  filters: { regionId?: number; districtId?: number; search?: string; page?: number; limit?: number } = {},
 ) {
   const page = filters.page ?? 1;
   const limit = Math.min(filters.limit ?? 20, 100);
@@ -106,6 +106,17 @@ export async function listDiscussions(
   const conditions = [];
   if (filters.districtId) conditions.push(eq(publicDiscussions.districtId, filters.districtId));
   else if (filters.regionId) conditions.push(eq(publicDiscussions.regionId, filters.regionId));
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    conditions.push(
+      inArray(
+        publicDiscussions.geoObjectId,
+        db.select({ id: geographicObjects.id })
+          .from(geographicObjects)
+          .where(or(ilike(geographicObjects.nameUz, term), ilike(geographicObjects.nameKrill, term))),
+      ),
+    );
+  }
   const discussionWhere = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [discussions, [{ total }], voteCounts, myVotes] = await Promise.all([
