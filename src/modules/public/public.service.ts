@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
-import { and, eq, gt, count, sql, ilike, or, inArray } from 'drizzle-orm';
+import { and, eq, gt, gte, lt, count, sql, ilike, or, inArray } from 'drizzle-orm';
 import { db } from '../../db/db';
 import {
   citizens,
@@ -97,12 +97,13 @@ export async function verifyOtp(
 
 export async function listDiscussions(
   citizenId: number | null,
-  filters: { regionId?: number; districtId?: number; search?: string; page?: number; limit?: number } = {},
+  filters: { regionId?: number; districtId?: number; search?: string; status?: 'active' | 'ended'; page?: number; limit?: number } = {},
 ) {
   const page = filters.page ?? 1;
   const limit = Math.min(filters.limit ?? 20, 100);
   const offset = (page - 1) * limit;
 
+  const now = new Date();
   const conditions = [];
   if (filters.districtId) conditions.push(eq(publicDiscussions.districtId, filters.districtId));
   else if (filters.regionId) conditions.push(eq(publicDiscussions.regionId, filters.regionId));
@@ -117,6 +118,8 @@ export async function listDiscussions(
       ),
     );
   }
+  if (filters.status === 'active') conditions.push(gte(publicDiscussions.endsAt, now));
+  if (filters.status === 'ended') conditions.push(lt(publicDiscussions.endsAt, now));
   const discussionWhere = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [discussions, [{ total }], voteCounts, myVotes] = await Promise.all([
