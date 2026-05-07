@@ -7,6 +7,8 @@ const router = Router();
 // Auth (no middleware)
 router.post('/auth/otp/request', controller.requestOtp);
 router.post('/auth/otp/verify', controller.verifyOtp);
+router.post('/auth/refresh', controller.refreshCitizenToken);
+router.post('/auth/logout', controller.logoutCitizen);
 
 // Discussions — optional auth (to include myVote)
 router.get('/discussions', optionalCitizenAuth, controller.listDiscussions);

@@ -4,6 +4,14 @@ import { getRegistry, getObjectById } from '../geographic-objects/geographic-obj
 import { getRegions, getDistricts } from '../locations/locations.service';
 import { getCategories } from '../admin/object-types/object-types.service';
 
+const CITIZEN_COOKIE = 'citizenRefreshToken';
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  maxAge: service.CITIZEN_REFRESH_EXPIRES_MS,
+};
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export async function requestOtp(req: Request, res: Response) {
@@ -22,8 +30,26 @@ export async function verifyOtp(req: Request, res: Response) {
     res.status(400).json({ status: 'error', message: 'sessionId va code talab etiladi' });
     return;
   }
-  const data = await service.verifyOtp(sessionId, code);
+  const { accessToken, refreshToken, citizen } = await service.verifyOtp(sessionId, code);
+  res.cookie(CITIZEN_COOKIE, refreshToken, COOKIE_OPTIONS);
+  res.json({ status: 'success', data: { accessToken, citizen } });
+}
+
+export async function refreshCitizenToken(req: Request, res: Response) {
+  const token = req.cookies?.[CITIZEN_COOKIE];
+  if (!token) {
+    res.status(401).json({ status: 'error', message: 'Refresh token topilmadi' });
+    return;
+  }
+  const data = await service.refreshCitizenToken(token);
   res.json({ status: 'success', data });
+}
+
+export async function logoutCitizen(req: Request, res: Response) {
+  const token = req.cookies?.[CITIZEN_COOKIE];
+  if (token) await service.logoutCitizen(token);
+  res.clearCookie(CITIZEN_COOKIE, COOKIE_OPTIONS);
+  res.json({ status: 'success', message: 'Tizimdan chiqildi' });
 }
 
 // ─── Discussions ─────────────────────────────────────────────────────────────

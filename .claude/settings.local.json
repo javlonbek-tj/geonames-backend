@@ -38,7 +38,13 @@
       "Bash(Write-Output \"Deleted\")",
       "PowerShell(Remove-Item *)",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\j.turdimatov\\\\Desktop\\\\Projects\\\\Projects\\\\Geonames-frontend\\\\src\" -Recurse -File | Where-Object { $_.FullName -match \"discussion|feature\" } | Select-Object FullName)",
-      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\j.turdimatov\\\\Desktop\\\\Projects\\\\Projects\\\\Geonames-backend\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)"
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\j.turdimatov\\\\Desktop\\\\Projects\\\\Projects\\\\Geonames-backend\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
+      "Bash(Remove-Item *)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\j.turdimatov\\\\Desktop\\\\Projects\\\\Projects\\\\Geonames-cabinet\\\\src\" -Recurse -File | Where-Object { $_.Extension -match '\\\\.\\(ts|tsx|js|jsx\\)$' -and $_.FullName -notmatch '\\(node_modules|\\\\.next|dist|build\\)' } | Select-Object -ExpandProperty FullName | Sort-Object)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\j.turdimatov\\\\Desktop\\\\Projects\\\\Projects\\\\Geonames-frontend\\\\src\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\j.turdimatov\\\\Desktop\\\\Projects\\\\Projects\\\\Geonames-cabinet\\\\src\" -Recurse -File)"
     ]
   }
 }

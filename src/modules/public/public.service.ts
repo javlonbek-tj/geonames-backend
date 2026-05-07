@@ -1,17 +1,33 @@
 import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
-import { and, eq, gt, gte, lt, count, sql, ilike, or, inArray } from 'drizzle-orm';
+import {
+  and,
+  eq,
+  gt,
+  gte,
+  lt,
+  count,
+  sql,
+  ilike,
+  or,
+  inArray,
+} from 'drizzle-orm';
 import { db } from '../../db/db';
 import {
   citizens,
   citizenOtps,
+  citizenRefreshTokens,
   publicDiscussions,
   publicVotes,
   geographicObjects,
 } from '../../db/schema';
+
 import { AppError } from '../../utils/appError';
 import { ENV } from '../../config';
 import { sendOtp } from '../telegram-bot/bot';
+
+export const CITIZEN_ACCESS_EXPIRES = '1h';
+export const CITIZEN_REFRESH_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -43,18 +59,7 @@ export async function requestOtp(
   return { sessionId };
 }
 
-export async function verifyOtp(
-  sessionId: string,
-  code: string,
-): Promise<{
-  accessToken: string;
-  citizen: {
-    id: number;
-    telegramId: string;
-    fullName: string | null;
-    phone: string | null;
-  };
-}> {
+export async function verifyOtp(sessionId: string, code: string) {
   const otp = await db.query.citizenOtps.findFirst({
     where: and(
       eq(citizenOtps.sessionId, sessionId),
@@ -79,11 +84,19 @@ export async function verifyOtp(
   const accessToken = jwt.sign(
     { citizenId: citizen.id, telegramId: citizen.telegramId },
     ENV.JWT_CITIZEN_SECRET,
-    { expiresIn: '30d' },
+    { expiresIn: CITIZEN_ACCESS_EXPIRES },
   );
+
+  const refreshToken = randomBytes(40).toString('hex');
+  await db.insert(citizenRefreshTokens).values({
+    citizenId: citizen.id,
+    token: refreshToken,
+    expiresAt: new Date(Date.now() + CITIZEN_REFRESH_EXPIRES_MS),
+  });
 
   return {
     accessToken,
+    refreshToken,
     citizen: {
       id: citizen.id,
       telegramId: citizen.telegramId,
@@ -93,11 +106,52 @@ export async function verifyOtp(
   };
 }
 
+export async function refreshCitizenToken(token: string) {
+  const stored = await db.query.citizenRefreshTokens.findFirst({
+    where: eq(citizenRefreshTokens.token, token),
+  });
+
+  if (!stored) throw new AppError('Refresh token topilmadi', 401);
+
+  if (stored.expiresAt < new Date()) {
+    await db
+      .delete(citizenRefreshTokens)
+      .where(eq(citizenRefreshTokens.token, token));
+    throw new AppError('Token muddati tugagan', 401);
+  }
+
+  const citizen = await db.query.citizens.findFirst({
+    where: eq(citizens.id, stored.citizenId),
+  });
+  if (!citizen) throw new AppError('Fuqaro topilmadi', 401);
+
+  const accessToken = jwt.sign(
+    { citizenId: citizen.id, telegramId: citizen.telegramId },
+    ENV.JWT_CITIZEN_SECRET,
+    { expiresIn: CITIZEN_ACCESS_EXPIRES },
+  );
+
+  return { accessToken };
+}
+
+export async function logoutCitizen(token: string) {
+  await db
+    .delete(citizenRefreshTokens)
+    .where(eq(citizenRefreshTokens.token, token));
+}
+
 // ─── Discussions ─────────────────────────────────────────────────────────────
 
 export async function listDiscussions(
   citizenId: number | null,
-  filters: { regionId?: number; districtId?: number; search?: string; status?: 'active' | 'ended'; page?: number; limit?: number } = {},
+  filters: {
+    regionId?: number;
+    districtId?: number;
+    search?: string;
+    status?: 'active' | 'ended';
+    page?: number;
+    limit?: number;
+  } = {},
 ) {
   const page = filters.page ?? 1;
   const limit = Math.min(filters.limit ?? 20, 100);
@@ -105,22 +159,33 @@ export async function listDiscussions(
 
   const now = new Date();
   const conditions = [];
-  if (filters.districtId) conditions.push(eq(publicDiscussions.districtId, filters.districtId));
-  else if (filters.regionId) conditions.push(eq(publicDiscussions.regionId, filters.regionId));
+  if (filters.districtId)
+    conditions.push(eq(publicDiscussions.districtId, filters.districtId));
+  else if (filters.regionId)
+    conditions.push(eq(publicDiscussions.regionId, filters.regionId));
   if (filters.search) {
     const term = `%${filters.search}%`;
     conditions.push(
       inArray(
         publicDiscussions.geoObjectId,
-        db.select({ id: geographicObjects.id })
+        db
+          .select({ id: geographicObjects.id })
           .from(geographicObjects)
-          .where(or(ilike(geographicObjects.nameUz, term), ilike(geographicObjects.nameKrill, term))),
+          .where(
+            or(
+              ilike(geographicObjects.nameUz, term),
+              ilike(geographicObjects.nameKrill, term),
+            ),
+          ),
       ),
     );
   }
-  if (filters.status === 'active') conditions.push(gte(publicDiscussions.endsAt, now));
-  if (filters.status === 'ended') conditions.push(lt(publicDiscussions.endsAt, now));
-  const discussionWhere = conditions.length > 0 ? and(...conditions) : undefined;
+  if (filters.status === 'active')
+    conditions.push(gte(publicDiscussions.endsAt, now));
+  if (filters.status === 'ended')
+    conditions.push(lt(publicDiscussions.endsAt, now));
+  const discussionWhere =
+    conditions.length > 0 ? and(...conditions) : undefined;
 
   const [discussions, [{ total }], voteCounts, myVotes] = await Promise.all([
     db.query.publicDiscussions.findMany({
@@ -134,7 +199,10 @@ export async function listDiscussions(
       limit,
       offset,
     }),
-    db.select({ total: count() }).from(publicDiscussions).where(discussionWhere),
+    db
+      .select({ total: count() })
+      .from(publicDiscussions)
+      .where(discussionWhere),
     db
       .select({
         discussionId: publicVotes.discussionId,
@@ -144,14 +212,23 @@ export async function listDiscussions(
       .from(publicVotes)
       .groupBy(publicVotes.discussionId),
     citizenId
-      ? db.select({ discussionId: publicVotes.discussionId, vote: publicVotes.vote })
+      ? db
+          .select({
+            discussionId: publicVotes.discussionId,
+            vote: publicVotes.vote,
+          })
           .from(publicVotes)
           .where(eq(publicVotes.citizenId, citizenId))
       : Promise.resolve([]),
   ]);
 
   const voteMap = new Map(voteCounts.map((v) => [v.discussionId, v]));
-  const myVoteMap = new Map((myVotes as { discussionId: number; vote: string }[]).map((v) => [v.discussionId, v.vote]));
+  const myVoteMap = new Map(
+    (myVotes as { discussionId: number; vote: string }[]).map((v) => [
+      v.discussionId,
+      v.vote,
+    ]),
+  );
 
   const data = discussions.map((d) => {
     const geo = d.geoObject;
@@ -178,7 +255,12 @@ export async function listDiscussions(
 
   return {
     data,
-    meta: { total: Number(total), page, limit, totalPages: Math.ceil(Number(total) / limit) },
+    meta: {
+      total: Number(total),
+      page,
+      limit,
+      totalPages: Math.ceil(Number(total) / limit),
+    },
   };
 }
 
@@ -267,13 +349,15 @@ export async function createDiscussion(applicationId: number): Promise<void> {
 
   await db
     .insert(publicDiscussions)
-    .values(geoObjs.map((g) => ({
-      applicationId,
-      geoObjectId: g.id,
-      regionId: g.regionId,
-      districtId: g.districtId,
-      endsAt,
-    })))
+    .values(
+      geoObjs.map((g) => ({
+        applicationId,
+        geoObjectId: g.id,
+        regionId: g.regionId,
+        districtId: g.districtId,
+        endsAt,
+      })),
+    )
     .onConflictDoUpdate({
       target: [publicDiscussions.applicationId, publicDiscussions.geoObjectId],
       set: { endsAt, createdAt: new Date() },

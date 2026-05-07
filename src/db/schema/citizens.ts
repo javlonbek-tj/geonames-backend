@@ -1,6 +1,7 @@
 import {
   pgTable,
   serial,
+  integer,
   varchar,
   text,
   boolean,
@@ -25,6 +26,16 @@ export const citizenOtps = pgTable('citizen_otps', {
   phone: varchar('phone', { length: 20 }),
   code: varchar('code', { length: 6 }).notNull(),
   used: boolean('used').default(false).notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const citizenRefreshTokens = pgTable('citizen_refresh_tokens', {
+  id: serial('id').primaryKey(),
+  citizenId: integer('citizen_id')
+    .references(() => citizens.id, { onDelete: 'cascade' })
+    .notNull(),
+  token: text('token').notNull().unique(),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

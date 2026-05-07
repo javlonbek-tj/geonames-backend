@@ -43,6 +43,13 @@
       "when": 1777104218818,
       "tag": "0005_hot_mesmero",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778147534097,
+      "tag": "0006_goofy_rocket_raccoon",
+      "breakpoints": true
     }
   ]
 }
