@@ -1,17 +1,19 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../../middleware';
+import { authenticate, authorize, readOnly } from '../../middleware';
 import * as usersController from './users/users.controller';
 import * as objectTypesController from './object-types/object-types.controller';
 
 const router = Router();
 
-// GET object types — for all users with authentication
 router.use(authenticate);
+router.use(readOnly);
+
+// GET object types — for all authenticated users
 router.get('/object-categories', objectTypesController.getCategories);
 router.get('/object-types', objectTypesController.getTypes);
 
-// The rest of the operations are only for admin
-router.use(authorize('admin'));
+// The rest requires admin or superuser (readOnly blocks mutations for superuser)
+router.use(authorize('admin', 'superuser'));
 
 // ─── Users ─────────────────────────────────────────────────────────
 

@@ -2,6 +2,7 @@ import { pgEnum } from 'drizzle-orm/pg-core';
 
 export const userRoleEnum = pgEnum('user_role', [
   'admin', // System administrator
+  'superuser', // Read-only portfolio viewer — sees everything, cannot mutate
   'dkp_filial', // DKP district branch — step 1
   'dkp_regional', // DKP regional branch — step 1.1
   'dkp_central', // DKP central (republic level) — steps 1.2, 5

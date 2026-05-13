@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../../middleware';
+import { authenticate, authorize, readOnly } from '../../middleware';
 import * as controller from './geographic-objects.controller';
 
 const router = Router();
 
 router.use(authenticate);
+router.use(readOnly);
 
 router.get('/registry', controller.getRegistry);
 router.get('/:id', controller.getObjectById);

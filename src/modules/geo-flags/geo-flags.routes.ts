@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { authenticate } from '../../middleware';
+import { authenticate, readOnly } from '../../middleware';
 import * as controller from './geo-flags.controller';
 
 const router = Router();
 
 router.use(authenticate);
+router.use(readOnly);
 
 // POST /api/geo-flags/applications/:id/geo-objects/:geoId/flag — Toggle nomuvofiq belgisi
 // GET  /api/geo-flags/applications/:id/flags                   — Ariza uchun barcha flaglar

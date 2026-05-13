@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { authenticate } from '../../middleware';
+import { authenticate, readOnly } from '../../middleware';
 import { uploadMiddleware } from '../../middleware/upload';
 import * as controller from './uploads.controller';
 
 const router = Router();
 
 router.use(authenticate);
+router.use(readOnly);
 
 router.post(
   '/applications/:applicationId',

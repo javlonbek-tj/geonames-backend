@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { authenticate } from '../../middleware';
+import { authenticate, readOnly } from '../../middleware';
 import * as controller from './applications.controller';
 
 const router = Router();
 
 router.use(authenticate);
+router.use(readOnly);
 
 router.get('/', controller.getApplications);
 router.get('/my-count', controller.getMyCount);

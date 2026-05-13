@@ -50,6 +50,13 @@
       "when": 1778147534097,
       "tag": "0006_goofy_rocket_raccoon",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778666087161,
+      "tag": "0007_wise_zaladane",
+      "breakpoints": true
     }
   ]
 }
