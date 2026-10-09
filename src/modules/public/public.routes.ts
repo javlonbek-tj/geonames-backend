@@ -25,4 +25,9 @@ router.get('/locations/regions', controller.getPublicRegions);
 router.get('/locations/districts', controller.getPublicDistricts);
 router.get('/categories', controller.getPublicCategories);
 
+// Public interactive map (no auth)
+router.get('/map/regions', controller.getPublicMapRegions);
+router.get('/map/regions/:regionId/districts', controller.getPublicMapDistricts);
+router.get('/map/registry-objects', controller.getPublicMapRegistryObjects);
+
 export default router;

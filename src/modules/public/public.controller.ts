@@ -3,6 +3,11 @@ import * as service from './public.service';
 import { getRegistry, getObjectById } from '../geographic-objects/geographic-objects.service';
 import { getRegions, getDistricts } from '../locations/locations.service';
 import { getCategories } from '../admin/object-types/object-types.service';
+import {
+  getRegionGeometries,
+  getDistrictGeometries,
+  getRegistryObjects,
+} from '../map/map.service';
 
 const CITIZEN_COOKIE = 'citizenRefreshToken';
 const COOKIE_OPTIONS = {
@@ -135,5 +140,27 @@ export async function getPublicCategories(_req: Request, res: Response) {
 
 export async function getPublicGeoObject(req: Request, res: Response) {
   const data = await getObjectById(Number(req.params.id));
+  res.json({ status: 'success', data });
+}
+
+// ─── Map ──────────────────────────────────────────────────────────────────────
+
+export async function getPublicMapRegions(_req: Request, res: Response) {
+  const data = await getRegionGeometries();
+  res.json({ status: 'success', data });
+}
+
+export async function getPublicMapDistricts(req: Request, res: Response) {
+  const regionId = Number(req.params.regionId);
+  const data = await getDistrictGeometries(regionId);
+  res.json({ status: 'success', data });
+}
+
+export async function getPublicMapRegistryObjects(req: Request, res: Response) {
+  const raw = req.query.typeIds as string | undefined;
+  const typeIds = raw ? raw.split(',').map(Number).filter(Boolean) : [];
+  const regionId = req.query.regionId ? Number(req.query.regionId) : undefined;
+  const districtId = req.query.districtId ? Number(req.query.districtId) : undefined;
+  const data = await getRegistryObjects({ typeIds, regionId, districtId });
   res.json({ status: 'success', data });
 }
